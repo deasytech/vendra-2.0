@@ -14,23 +14,22 @@ class Organization extends Model
     protected $fillable = [
         'tenant_id',
         'service_id',
+        'tin',
+        'business_id',
         'registration_number',
         'legal_name',
+        'slug',
         'email',
         'phone',
-        'street_name',
-        'city_name',
-        'postal_zone',
+        'postal_address',
         'description'
     ];
+
+    protected $casts = ['postal_address' => 'array'];
 
     public function tenant()
     {
         return $this->belongsTo(Tenant::class);
-    }
-    public function businesses()
-    {
-        return $this->hasMany(Business::class);
     }
     public function invoices()
     {

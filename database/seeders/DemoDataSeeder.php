@@ -6,7 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\{
   Tenant,
   Organization,
-  Business,
+  Customer,
   TaxlyCredential,
   Invoice,
   InvoiceLine,
@@ -22,14 +22,14 @@ class DemoDataSeeder extends Seeder
   {
     Tenant::factory(3)->create()->each(function ($tenant) {
       $organization = Organization::factory()->create(['tenant_id' => $tenant->id]);
-      $business = Business::factory()->create(['organization_id' => $organization->id]);
+      $customer = Customer::factory()->create();
 
       TaxlyCredential::factory()->create(['tenant_id' => $tenant->id]);
 
       Invoice::factory(5)->create([
         'tenant_id' => $tenant->id,
         'organization_id' => $organization->id,
-        'business_id' => $business->id,
+        'customer_id' => $customer->id,
       ])->each(function ($invoice) {
         InvoiceLine::factory(3)->create(['invoice_id' => $invoice->id]);
         InvoiceTaxTotal::factory()->create(['invoice_id' => $invoice->id]);

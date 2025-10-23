@@ -48,7 +48,7 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Invoice Reference *</label>
                 <input wire:model.defer="invoice_reference"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="INV-2024-001" />
                 @error('invoice_reference')
                     <span class="text-sm text-red-600 mt-1 block">{{ $message }}</span>
@@ -58,7 +58,7 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Issue Date *</label>
                 <input type="date" wire:model.defer="issue_date"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700" />
                 @error('issue_date')
                     <span class="text-sm text-red-600 mt-1 block">{{ $message }}</span>
                 @enderror
@@ -67,13 +67,13 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
                 <input type="date" wire:model.defer="due_date"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700" />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Invoice Type</label>
                 <select wire:model.defer="invoice_type_code"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
                     <option value="">Select invoice type...</option>
                     @foreach ($invoice_types as $type)
                         <option value="{{ $type['code'] ?? ($type['id'] ?? ($type['value'] ?? '396')) }}">
@@ -97,28 +97,14 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Supplier Type</label>
-                <select wire:model="supplier_type"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                    <option value="business">Business</option>
-                </select>
-            </div>
-
-            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Select Supplier</label>
                 <select wire:model.live.debounce.500ms="selected_supplier_id"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
                     <option value="">Choose a supplier...</option>
-                    @if ($supplier_type === 'business')
-                        @foreach ($this->businesses as $business)
-                            <option value="{{ $business->id }}">{{ $business->name }} - {{ $business->tin }}</option>
-                        @endforeach
-                    @else
-                        @foreach ($this->organizations as $organization)
-                            <option value="{{ $organization->id }}">{{ $organization->legal_name }} -
-                                {{ $organization->registration_number }}</option>
-                        @endforeach
-                    @endif
+                    @foreach ($this->organizations as $organization)
+                        <option value="{{ $organization->id }}">{{ $organization->legal_name }} -
+                            {{ $organization->registration_number }}</option>
+                    @endforeach
                 </select>
             </div>
         </div>
@@ -127,7 +113,7 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Company Name *</label>
                 <input wire:model.defer="supplier.party_name"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="Enter company name" />
                 @error('supplier.party_name')
                     <span class="text-sm text-red-600 mt-1 block">{{ $message }}</span>
@@ -137,21 +123,21 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">TIN</label>
                 <input wire:model.defer="supplier.tin"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="Tax Identification Number" />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 <input type="email" wire:model.defer="supplier.email"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="supplier@company.com" />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                 <input wire:model.defer="supplier.telephone"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="+234..." />
             </div>
         </div>
@@ -169,29 +155,13 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Customer Type</label>
-                <select wire:model="customer_type"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
-                    <option value="business">Business</option>
-                </select>
-            </div>
-
-            <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Select Customer</label>
                 <select wire:model.live.debounce.500ms="selected_customer_id"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
                     <option value="">Choose a customer...</option>
-                    @if ($customer_type === 'business')
-                        @foreach ($this->businesses as $business)
-                            <option value="{{ $business->id }}">{{ $business->name }} - {{ $business->tin }}
-                            </option>
-                        @endforeach
-                    @else
-                        @foreach ($this->organizations as $organization)
-                            <option value="{{ $organization->id }}">{{ $organization->legal_name }} -
-                                {{ $organization->registration_number }}</option>
-                        @endforeach
-                    @endif
+                    @foreach ($this->customers as $customer)
+                        <option value="{{ $customer->id }}">{{ $customer->name }} - {{ $customer->tin }}</option>
+                    @endforeach
                 </select>
             </div>
         </div>
@@ -200,7 +170,7 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Customer Name *</label>
                 <input wire:model.defer="customer.party_name"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="Enter customer name" />
                 @error('customer.party_name')
                     <span class="text-sm text-red-600 mt-1 block">{{ $message }}</span>
@@ -210,21 +180,21 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">TIN</label>
                 <input wire:model.defer="customer.tin"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="Tax Identification Number" />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 <input type="email" wire:model.defer="customer.email"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="customer@company.com" />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                 <input wire:model.defer="customer.telephone"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
                     placeholder="+234..." />
             </div>
         </div>
@@ -256,7 +226,7 @@
                         <div class="md:col-span-3">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
                             <input wire:model.defer="invoice_lines.{{ $idx }}.item.name"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 placeholder="Product or service name" />
                             @error('invoice_lines.' . $idx . '.item.name')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
@@ -266,7 +236,7 @@
                         <div class="md:col-span-3">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Item Description *</label>
                             <input wire:model.defer="invoice_lines.{{ $idx }}.item.description"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 placeholder="Product or service description" />
                             @error('invoice_lines.' . $idx . '.item.description')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
@@ -277,7 +247,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
                             <input type="number"
                                 wire:model.live.debounce.500ms="invoice_lines.{{ $idx }}.invoiced_quantity"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 min="1" />
                             @error('invoice_lines.' . $idx . '.invoiced_quantity')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
@@ -288,7 +258,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price (₦) *</label>
                             <input type="number" step="0.01"
                                 wire:model.live.debounce.500ms="invoice_lines.{{ $idx }}.price.price_amount"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 placeholder="0.00" />
                             @error('invoice_lines.' . $idx . '.price.price_amount')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>

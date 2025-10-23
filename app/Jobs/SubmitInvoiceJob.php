@@ -22,7 +22,6 @@ class SubmitInvoiceJob implements ShouldQueue
         $service = new TaxlyService($this->invoice->tenant->taxlyCredential);
 
         $payload = [
-            'business_id' => $this->invoice->business_id,
             'invoice_reference' => $this->invoice->invoice_reference,
             'irn' => $this->invoice->irn,
             'invoice_line' => $this->invoice->lines,

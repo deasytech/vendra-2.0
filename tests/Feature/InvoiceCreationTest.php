@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\Business;
+use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
-use App\Livewire\InvoiceCreate;
+use App\Livewire\Invoices\InvoiceCreate;
 
 class InvoiceCreationTest extends TestCase
 {
@@ -16,7 +16,8 @@ class InvoiceCreationTest extends TestCase
 
   public function test_invoice_creation_page_loads()
   {
-    $response = $this->get('/create-invoice');
+    $user = User::factory()->create();
+    $response = $this->actingAs($user)->get('/create-invoice');
     $response->assertStatus(200);
   }
 
@@ -32,25 +33,16 @@ class InvoiceCreationTest extends TestCase
   public function test_customer_supplier_dropdowns_work()
   {
     // Create test data
-    $business = Business::factory()->create([
-      'name' => 'Test Business',
+    $customer = Customer::factory()->create([
+      'name' => 'Test Customer',
       'tin' => '12345678901'
     ]);
 
-    $organization = Organization::factory()->create([
-      'legal_name' => 'Test Organization',
-      'registration_number' => 'ORG123456'
-    ]);
-
     Livewire::test(InvoiceCreate::class)
-      ->set('supplier_type', 'business')
-      ->set('selected_supplier_id', $business->id)
-      ->assertSet('supplier.party_name', 'Test Business')
-      ->assertSet('supplier.tin', '12345678901')
-      ->set('customer_type', 'organization')
-      ->set('selected_customer_id', $organization->id)
-      ->assertSet('customer.party_name', 'Test Organization')
-      ->assertSet('customer.tin', 'ORG123456');
+      ->set('customer_type', 'customer')
+      ->set('selected_customer_id', $customer->id)
+      ->assertSet('customer.party_name', 'Test Customer')
+      ->assertSet('customer.tin', '12345678901');
   }
 
   public function test_invoice_validation_functionality()

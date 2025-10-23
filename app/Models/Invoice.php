@@ -14,8 +14,6 @@ class Invoice extends Model
     protected $fillable = [
         'tenant_id',
         'organization_id',
-        'business_uuid',
-        'business_id',
         'customer_id',
         'invoice_reference',
         'irn',
@@ -54,10 +52,6 @@ class Invoice extends Model
         return $this->belongsTo(Organization::class);
     }
 
-    public function business()
-    {
-        return $this->belongsTo(Business::class);
-    }
 
     public function customer()
     {

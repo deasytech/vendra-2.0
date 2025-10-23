@@ -10,13 +10,12 @@ class TaxlyInvoicePayloadBuilder
   public static function build(Invoice $invoice): array
   {
     $organization = $invoice->organization;
-    $business = $invoice->business;
-    $customer = $invoice->accounting_customer_party ?? [];
+    $customer = $invoice->customer;
+    $customerParty = $invoice->accounting_customer_party ?? [];
     $supplier = $invoice->accounting_supplier_party ?? [];
 
     return [
       'channel' => 'api',
-      'business_id' => $business->uuid ?? null,
       'invoice_reference' => $invoice->invoice_reference,
       'irn' => $invoice->irn,
       'issue_date' => $invoice->issue_date,
@@ -76,13 +75,13 @@ class TaxlyInvoicePayloadBuilder
           'country' => 'NG',
         ],
       ],
-      'accounting_customer_party' => [
-        'party_name' => Arr::get($customer, 'party_name'),
-        'tin' => Arr::get($customer, 'tin'),
-        'email' => Arr::get($customer, 'email'),
-        'telephone' => Arr::get($customer, 'telephone'),
-        'business_description' => Arr::get($customer, 'business_description'),
-        'postal_address' => Arr::get($customer, 'postal_address', []),
+      'accounting_customer_party' => $customer ? $customer->toPartyObject() : [
+        'party_name' => Arr::get($customerParty, 'party_name'),
+        'tin' => Arr::get($customerParty, 'tin'),
+        'email' => Arr::get($customerParty, 'email'),
+        'telephone' => Arr::get($customerParty, 'telephone'),
+        'business_description' => Arr::get($customerParty, 'business_description'),
+        'postal_address' => Arr::get($customerParty, 'postal_address', []),
       ],
       'actual_delivery_date' => $invoice->actual_delivery_date,
       'payment_means' => $invoice->payment_means ?? [

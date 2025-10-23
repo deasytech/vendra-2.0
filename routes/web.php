@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Webhook\TaxlyWebhookController as WebhookTaxlyWebhookController;
+use App\Livewire\Customers\CustomerCreate;
+use App\Livewire\Customers\CustomerEdit;
 use App\Livewire\Customers\CustomersIndex;
 use App\Livewire\Invoices\InvoiceCreate;
 use App\Livewire\Invoices\InvoiceEdit;
@@ -14,12 +16,8 @@ use App\Livewire\Settings\TwoFactor;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
-
-Route::view('dashboard', 'dashboard')
-    ->middleware(['auth', 'verified'])
+Route::view('/', 'dashboard')
+    ->middleware(['auth'])
     ->name('dashboard');
 
 Route::middleware(['auth'])->group(function () {
@@ -45,6 +43,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/invoices/{invoice}', InvoiceShow::class)->name('invoices.show');
     Route::get('/invoices/{invoice}/edit', InvoiceEdit::class)->name('invoices.edit');
     Route::get('/customers', CustomersIndex::class)->name('customers.index');
+    Route::get('/customers/create', CustomerCreate::class)->name('customers.create');
+    Route::get('/customers/{customer}/edit', CustomerEdit::class)->name('customers.edit');
     Route::get('/invoice-exchange', TransmittedInvoices::class)->name('invoice-exchange');
 });
 

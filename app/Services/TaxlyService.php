@@ -42,6 +42,21 @@ class TaxlyService
         throw $e;
     }
 
+    /** Taxpayer login */
+    public function taxPayerLogin(array $payload): array
+    {
+        try {
+            $res = $this->client()->post('/auth/tax-payer-login', $payload);
+            $res->throw();
+            return $res->json();
+        } catch (RequestException $e) {
+            $this->handleRequestException($e);
+        } catch (Throwable $e) {
+            Log::error('Taxly validateIrn error', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
     /** Validate IRN */
     public function validateIrn(array $payload): array
     {

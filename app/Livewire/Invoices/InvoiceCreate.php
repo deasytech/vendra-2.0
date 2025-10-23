@@ -4,7 +4,7 @@ namespace App\Livewire\Invoices;
 
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
-use App\Models\Business;
+use App\Models\Customer;
 use App\Models\Organization;
 use App\Services\TaxlyService;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +20,7 @@ class InvoiceCreate extends Component
 {
     public $tenant_id;
     public $organization_id;
+    public $customer_id;
     public $business_id;
     public $service_id;
     public $invoice_reference;
@@ -34,8 +35,6 @@ class InvoiceCreate extends Component
 
     public $selected_supplier_id;
     public $selected_customer_id;
-    public $supplier_type = 'business'; // 'business' or 'organization'
-    public $customer_type = 'business'; // 'business' or 'organization'
 
     public $submitting = false;
     public $message;
@@ -86,6 +85,37 @@ class InvoiceCreate extends Component
         // Set default dates
         $this->issue_date = now()->format('Y-m-d');
         $this->due_date = now()->addDays(30)->format('Y-m-d');
+
+        // Set default supplier if organizations exist
+        $this->setDefaultSupplier();
+    }
+
+    /**
+     * Set default supplier fields if organizations exist
+     */
+    private function setDefaultSupplier()
+    {
+        $organization = Organization::first();
+        if ($organization) {
+            $this->selected_supplier_id = $organization->id;
+            $this->supplier = [
+                'party_name' => $organization->legal_name,
+                'tin' => $organization->registration_number,
+                'email' => $organization->email,
+                'telephone' => $organization->phone,
+                'postal_address' => [
+                    'street_name' => $organization->street_name ?? 'Unknown Street',
+                    'city_name' => $organization->city_name ?? 'Unknown City',
+                    'postal_zone' => $organization->postal_zone ?? '000000', // Default postal code
+                    'country' => 'NG',
+                ],
+            ];
+
+            $this->organization_id = $organization->id;
+            $this->tenant_id = $organization->tenant_id ?? Auth::user()->tenant_id ?? null;
+            $this->service_id = $organization->service_id ?? null;
+            $this->business_id = $organization->business_id ?? null;
+        }
     }
 
     /**
@@ -121,30 +151,7 @@ class InvoiceCreate extends Component
 
     public function updatedSelectedSupplierId($value)
     {
-        if ($value && $this->supplier_type === 'business') {
-            $business = Business::find($value);
-            if ($business) {
-                // Ensure postal_address has all required fields for Taxly with proper country code
-                $postalAddress = $business->postal_address ?? [];
-                $this->supplier = [
-                    'party_name' => $business->name,
-                    'tin' => $business->tin,
-                    'email' => $business->email,
-                    'telephone' => $business->telephone,
-                    'postal_address' => [
-                        'street_name' => $postalAddress['street_name'] ?? 'Unknown Street',
-                        'city_name' => $postalAddress['city_name'] ?? 'Unknown City',
-                        'postal_zone' => $postalAddress['postal_zone'] ?? '000000', // Default postal code
-                        'country' => $postalAddress['country'] ?? 'NG', // ISO country code
-                    ],
-                ];
-
-                $this->business_id = $business->business_id;
-                $this->service_id = $business->service_id ?? null;
-                $this->organization_id = $business->organization_id ?? null;
-                $this->tenant_id = $business->tenant_id ?? Auth::user()->tenant_id ?? null;
-            }
-        } elseif ($value && $this->supplier_type === 'organization') {
+        if ($value) {
             $organization = Organization::find($value);
             if ($organization) {
                 $this->supplier = [
@@ -161,47 +168,28 @@ class InvoiceCreate extends Component
                 ];
 
                 $this->organization_id = $organization->id;
-                $this->business_id = null;
+                $this->customer_id = null;
                 $this->tenant_id = $organization->tenant_id ?? Auth::user()->tenant_id ?? null;
                 $this->service_id = $organization->service_id ?? null;
+                $this->business_id = $organization->business_id ?? null;
             }
         }
     }
 
     public function updatedSelectedCustomerId($value)
     {
-        if ($value && $this->customer_type === 'business') {
-            $business = Business::find($value);
-            if ($business) {
-                $this->customer = [
-                    'party_name' => $business->name,
-                    'tin' => $business->tin,
-                    'email' => $business->email,
-                    'telephone' => $business->telephone,
-                    'postal_address' => $business->postal_address,
-                ];
-            }
-        } elseif ($value && $this->customer_type === 'organization') {
-            $organization = Organization::find($value);
-            if ($organization) {
-                $this->customer = [
-                    'party_name' => $organization->legal_name,
-                    'tin' => $organization->registration_number,
-                    'email' => $organization->email,
-                    'telephone' => $organization->phone,
-                    'postal_address' => [
-                        'street_name' => $organization->street_name,
-                        'city_name' => $organization->city_name,
-                        'postal_zone' => $organization->postal_zone,
-                    ],
-                ];
+        if ($value) {
+            $customer = Customer::find($value);
+            if ($customer) {
+                $this->customer = $customer->toPartyObject();
+                $this->customer_id = $customer->id;
             }
         }
     }
 
-    public function getBusinessesProperty()
+    public function getCustomersProperty()
     {
-        return Business::all();
+        return Customer::all();
     }
 
     public function getOrganizationsProperty()
@@ -277,18 +265,11 @@ class InvoiceCreate extends Component
         DB::beginTransaction();
 
         try {
-            // 🧩 Fetch the business record to get its Taxly UUID
-            $business = Business::where('business_id', $this->business_id)->first();
-            if (!$business || !$business->business_id) {
-                Log::info("Business UUID not found for the selected business.", [$business]);
-            }
-
             // create internal invoice record
             $invoice = Invoice::create([
                 'tenant_id' => $this->tenant_id,
                 'organization_id' => $this->organization_id,
-                'business_uuid' => $this->business_id,
-                'business_id' => $business->id,
+                'customer_id' => $this->customer_id,
                 'invoice_reference' => $this->invoice_reference,
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
@@ -307,9 +288,9 @@ class InvoiceCreate extends Component
             // build payload for Taxly - ensure proper data types and required fields
             $payload = [
                 'channel' => 'api',
-                'business_id' => $this->business_id, // must be provided
                 'invoice_reference' => $this->invoice_reference,
                 'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
+                'business_id' => $this->business_id,
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
                 'issue_time' => now()->format('H:i:s'),
@@ -357,7 +338,6 @@ class InvoiceCreate extends Component
 
             // validate IRN (optional)
             $irnPayload = [
-                'business_id' => $this->business_id,
                 'invoice_reference' => $this->invoice_reference,
                 'irn' => $payload['irn']
             ];
@@ -419,9 +399,9 @@ class InvoiceCreate extends Component
             // build payload for Taxly validation - include all required fields
             $payload = [
                 'channel' => 'api',
-                'business_id' => $this->business_id,
                 'invoice_reference' => $this->invoice_reference,
                 'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
+                'business_id' => $this->business_id,
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
                 'issue_time' => now()->format('H:i:s'),
@@ -493,9 +473,9 @@ class InvoiceCreate extends Component
 
             // build payload for Taxly validation
             $payload = [
-                'business_id' => $this->business_id,
                 'invoice_reference' => $this->invoice_reference,
                 'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
+                'business_id' => $this->business_id,
             ];
 
             // call Taxly service for validation
@@ -517,20 +497,11 @@ class InvoiceCreate extends Component
     }
 
     /**
-     * Ensure required IDs (business_id, service_id, tenant_id) are populated
+     * Ensure required IDs (customer_id, service_id, tenant_id) are populated
      */
     private function ensureEntityIdentifiers()
     {
-        if (!$this->business_id && $this->selected_supplier_id && $this->supplier_type === 'business') {
-            $business = Business::find($this->selected_supplier_id);
-            if ($business) {
-                $this->business_id = $business->business_id;
-                $this->service_id = $business->service_id ?? null;
-                $this->tenant_id = $business->tenant_id ?? Auth::user()->tenant_id ?? null;
-            }
-        }
-
-        if (!$this->organization_id && $this->selected_supplier_id && $this->supplier_type === 'organization') {
+        if (!$this->organization_id && $this->selected_supplier_id) {
             $organization = Organization::find($this->selected_supplier_id);
             if ($organization) {
                 $this->organization_id = $organization->id;

@@ -52,7 +52,15 @@ class Login extends Component
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        // Prefer an explicit intended redirect from the session to ensure Livewire navigates correctly.
+        $intended = Session::pull('url.intended');
+
+        if ($intended) {
+            $this->redirect($intended, navigate: true);
+            return;
+        }
+
+        $this->redirect(route('dashboard', absolute: false), navigate: true);
     }
 
     /**
@@ -99,6 +107,6 @@ class Login extends Component
      */
     protected function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+        return Str::transliterate(Str::lower($this->email) . '|' . request()->ip());
     }
 }

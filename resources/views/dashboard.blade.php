@@ -30,7 +30,7 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Invoices</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            {{ App\Models\Invoice::count() }}
+                            {{ App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)->count() }}
                         </p>
                         <p class="mt-1 text-xs text-green-600 dark:text-green-400">
                             <span class="inline-flex items-center">
@@ -60,7 +60,7 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Invoices</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            {{ App\Models\Invoice::where('payment_status', 'PENDING')->count() }}
+                            {{ App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)->where('payment_status', 'PENDING')->count() }}
                         </p>
                         <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
                             <span class="inline-flex items-center">
@@ -90,7 +90,7 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Customers</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            {{ App\Models\Business::count() + App\Models\Organization::count() }}
+                            {{ App\Models\Customer::where('tenant_id', auth()->user()->tenant_id)->count() + App\Models\Organization::where('tenant_id', auth()->user()->tenant_id)->count() }}
                         </p>
                         <p class="mt-1 text-xs text-green-600 dark:text-green-400">
                             <span class="inline-flex items-center">
@@ -120,7 +120,7 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Revenue This Month</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            ₦{{ number_format(App\Models\Invoice::whereMonth('created_at', now()->month)->sum('legal_monetary_total->payable_amount') ?? 0) }}
+                            ₦{{ number_format(App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)->whereMonth('created_at', now()->month)->sum('legal_monetary_total->payable_amount') ?? 0) }}
                         </p>
                         <p class="mt-1 text-xs text-purple-600 dark:text-purple-400">
                             <span class="inline-flex items-center">
@@ -156,11 +156,12 @@
                 <div class="p-6">
                     <div class="space-y-4">
                         @php
-                            $recentInvoices = App\Models\Invoice::with([
-                                'transmissions' => function ($query) {
-                                    $query->latest()->limit(1);
-                                },
-                            ])
+                            $recentInvoices = App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)
+                                ->with([
+                                    'transmissions' => function ($query) {
+                                        $query->latest()->limit(1);
+                                    },
+                                ])
                                 ->latest()
                                 ->limit(5)
                                 ->get();

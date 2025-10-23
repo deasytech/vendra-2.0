@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->nullable()->constrained('tenants')->nullOnDelete();
             $table->foreignId('organization_id')->nullable()->constrained('organizations')->nullOnDelete();
-            $table->foreignId('business_id')->nullable()->constrained('businesses')->nullOnDelete();
             $table->string('invoice_reference')->index(); // e.g. INV0001
             $table->string('irn')->nullable()->index(); // IRN returned by Taxly/FIRS: INV000002-...
             $table->date('issue_date')->nullable();
@@ -33,7 +32,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->unique(['business_id', 'invoice_reference']);
+            $table->unique(['invoice_reference']);
         });
     }
 

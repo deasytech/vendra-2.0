@@ -5,7 +5,7 @@ namespace Database\Factories;
 use App\Models\Invoice;
 use App\Models\Tenant;
 use App\Models\Organization;
-use App\Models\Business;
+use App\Models\Customer;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -18,7 +18,7 @@ class InvoiceFactory extends Factory
     return [
       'tenant_id' => Tenant::factory(),
       'organization_id' => Organization::factory(),
-      'business_id' => Business::factory(),
+      'customer_id' => Customer::factory(),
       'invoice_reference' => strtoupper(Str::random(8)),
       'issue_date' => $this->faker->date(),
       'due_date' => $this->faker->date(),
