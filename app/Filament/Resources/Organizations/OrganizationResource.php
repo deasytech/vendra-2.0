@@ -24,8 +24,6 @@ class OrganizationResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Organizations';
 
-    protected static ?string $recordTitleAttribute = 'legal_name';
-
     public static function form(Schema $schema): Schema
     {
         return OrganizationForm::configure($schema);

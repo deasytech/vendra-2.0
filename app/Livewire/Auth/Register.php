@@ -73,7 +73,7 @@ class Register extends Component
                 if (!empty($organizations) && is_array($organizations)) {
                     $organization = $organizations[0];
                     $validated['tin']         = $organization['tin'] ?? null;
-                    $validated['trade_name']  = $organization['name'] ?? null;
+                    $validated['legal_name']  = $organization['name'] ?? null;
                     $validated['business_id'] = $organization['id'] ?? null;
                     $validated['irn_template'] = $organization['irn_template'] ?? null;
 
@@ -92,13 +92,13 @@ class Register extends Component
 
         $org = $tenant->organizations()->create([
             'tin'                   => $validated['tin'] ?? null,
-            'trade_name'            => $validated['trade_name'] ?? $validated['name'],
+            'legal_name'            => $validated['legal_name'] ?? $validated['name'],
             'business_id'           => $validated['business_id'] ?? null,
             'service_id'            => $validated['service_id'] ?? null,
         ]);
 
-        // Use trade_name if available, otherwise fall back to the user's name
-        $userName = $validated['trade_name'] ?? $validated['name'];
+        // Use legal_name if available, otherwise fall back to the user's name
+        $userName = $validated['legal_name'] ?? $validated['name'];
 
         // Create the user with proper relationships
         $user = User::create([

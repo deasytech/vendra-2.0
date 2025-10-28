@@ -2,14 +2,11 @@
 
 namespace App\Filament\Resources\Organizations\Tables;
 
-use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
-use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -21,21 +18,30 @@ class OrganizationsTable
         return $table
             ->columns([
                 TextColumn::make('tenant.name')
-                    ->numeric()
                     ->sortable(),
-                TextColumn::make('registration_number')
-                    ->label('RC Number')
+                TextColumn::make('service_id')
+                    ->label('Service ID')
                     ->searchable(),
+                TextColumn::make('tin')
+                    ->searchable(),
+                TextColumn::make('business_id')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('registration_number')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('legal_name')
                     ->searchable(),
+                TextColumn::make('slug')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('email')
                     ->label('Email address')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('phone')
-                    ->searchable(),
-                TextColumn::make('city_name')
-                    ->label('City')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -53,11 +59,7 @@ class OrganizationsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                ActionGroup::make([
-                    ViewAction::make(),
-                    EditAction::make(),
-                    DeleteAction::make(),
-                ])
+                EditAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

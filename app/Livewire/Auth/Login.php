@@ -28,7 +28,7 @@ class Login extends Component
     /**
      * Handle an incoming authentication request.
      */
-    public function login(): void
+    public function login()
     {
         $this->validate();
 
@@ -60,7 +60,9 @@ class Login extends Component
             return;
         }
 
-        $this->redirect(route('dashboard', absolute: false), navigate: true);
+        return redirect()->route('dashboard')->withHeaders([
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
     }
 
     /**

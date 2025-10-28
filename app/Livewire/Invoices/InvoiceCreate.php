@@ -69,7 +69,8 @@ class InvoiceCreate extends Component
     public function mount()
     {
         // Generate random invoice reference: INV_ + 8 random digits
-        $this->invoice_reference = 'INV' . str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
+        // $this->invoice_reference = 'INV' . str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
+        $this->invoice_reference = 'INV-' . strtoupper(uniqid());
 
         $this->hsn_code = 'HSN' . str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
         $this->product_category = 'PRD' . str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);

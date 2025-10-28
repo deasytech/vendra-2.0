@@ -4,6 +4,7 @@ use App\Http\Controllers\Webhook\TaxlyWebhookController as WebhookTaxlyWebhookCo
 use App\Livewire\Customers\CustomerCreate;
 use App\Livewire\Customers\CustomerEdit;
 use App\Livewire\Customers\CustomersIndex;
+use App\Livewire\Dashboard;
 use App\Livewire\Invoices\InvoiceCreate;
 use App\Livewire\Invoices\InvoiceEdit;
 use App\Livewire\Invoices\InvoiceShow;
@@ -16,7 +17,7 @@ use App\Livewire\Settings\TwoFactor;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
-Route::view('/', 'dashboard')
+Route::get('/', Dashboard::class)
     ->middleware(['auth'])
     ->name('dashboard');
 

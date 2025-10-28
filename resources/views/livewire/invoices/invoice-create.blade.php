@@ -95,20 +95,6 @@
             Supplier (Your Company)
         </h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Select Supplier</label>
-                <select wire:model.live.debounce.500ms="selected_supplier_id"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
-                    <option value="">Choose a supplier...</option>
-                    @foreach ($this->organizations as $organization)
-                        <option value="{{ $organization->id }}">{{ $organization->legal_name }} -
-                            {{ $organization->registration_number }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Company Name *</label>
