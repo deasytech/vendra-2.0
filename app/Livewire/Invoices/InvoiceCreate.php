@@ -8,11 +8,9 @@ use App\Models\Customer;
 use App\Models\Organization;
 use App\Services\TaxlyService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Throwable;
 use App\Models\TaxlyCredential;
-use App\Models\Tenant;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 
@@ -33,8 +31,12 @@ class InvoiceCreate extends Component
     public $customer = [];
     public $legal_monetary_total = [];
 
-    public $selected_supplier_id;
     public $selected_customer_id;
+
+    public $customer_name;
+    public $customer_tin;
+    public $customer_email;
+    public $customer_phone;
 
     public $submitting = false;
     public $message;
@@ -62,33 +64,44 @@ class InvoiceCreate extends Component
         'invoice_lines.*.item.description' => 'required|string',
         'invoice_lines.*.invoiced_quantity' => 'required|integer|min:1',
         'invoice_lines.*.price.price_amount' => 'required|numeric|min:0',
-        'supplier.party_name' => 'required|string',
-        'customer.party_name' => 'required|string',
     ];
 
     public function mount()
     {
-        // Generate random invoice reference: INV_ + 8 random digits
-        // $this->invoice_reference = 'INV' . str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
-        $this->invoice_reference = 'INV-' . strtoupper(uniqid());
-
-        $this->hsn_code = 'HSN' . str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-        $this->product_category = 'PRD' . str_pad(rand(0, 99999999), 8, '0', STR_PAD_LEFT);
-
-        // Load invoice types dynamically from Taxly service
-        $this->loadInvoiceTypes();
-
-        // default single line
-        $this->invoice_lines = [
-            ['hsn_code' => $this->hsn_code, 'product_category' => $this->product_category, 'invoiced_quantity' => 1, 'price' => ['price_amount' => 0, 'base_quantity' => 1, 'price_unit' => 'NGN per 1'], 'item' => ['name' => '', 'description' => ''], 'order' => 0]
+        $this->customer = [
+            'party_name' => '',
+            'tin' => '',
+            'email' => '',
+            'telephone' => '',
+            'business_description' => '',
+            'postal_address' => [
+                'street_name' => '',
+                'city_name' => '',
+                'postal_zone' => '',
+                'country' => 'NG',
+            ],
         ];
 
-        // Set default dates
+        $this->setDefaultSupplier();
+        $this->invoice_reference = 'INV' . strtoupper(uniqid());
         $this->issue_date = now()->format('Y-m-d');
         $this->due_date = now()->addDays(30)->format('Y-m-d');
+        $this->loadInvoiceTypes();
 
-        // Set default supplier if organizations exist
-        $this->setDefaultSupplier();
+        $this->invoice_lines = [
+            [
+                'hsn_code' => $this->hsn_code = $this->generateHsnCode(),
+                'product_category' => $this->product_category,
+                'invoiced_quantity' => 1,
+                'price' => [
+                    'price_amount' => 0,
+                    'base_quantity' => 1,
+                    'price_unit' => 'NGN per 1'
+                ],
+                'item' => ['name' => '', 'description' => ''],
+                'order' => 0
+            ]
+        ];
     }
 
     /**
@@ -97,25 +110,29 @@ class InvoiceCreate extends Component
     private function setDefaultSupplier()
     {
         $organization = Organization::first();
+
         if ($organization) {
-            $this->selected_supplier_id = $organization->id;
+            $this->supplier = $organization->toPartyObject();
+
+            // Set other internal references
+            $this->organization_id = $organization->id;
+            $this->tenant_id = $organization->tenant_id ?? Auth::user()?->tenant_id;
+            $this->service_id = $organization->service_id;
+            $this->business_id = $organization->business_id;
+        } else {
+            // Fallback defaults if no organization exists
             $this->supplier = [
-                'party_name' => $organization->legal_name,
-                'tin' => $organization->registration_number,
-                'email' => $organization->email,
-                'telephone' => $organization->phone,
+                'party_name' => 'Unknown Supplier',
+                'tin' => '',
+                'email' => '',
+                'telephone' => '',
                 'postal_address' => [
-                    'street_name' => $organization->street_name ?? 'Unknown Street',
-                    'city_name' => $organization->city_name ?? 'Unknown City',
-                    'postal_zone' => $organization->postal_zone ?? '000000', // Default postal code
+                    'street_name' => 'Unknown Street',
+                    'city_name' => 'Unknown City',
+                    'postal_zone' => '000000',
                     'country' => 'NG',
                 ],
             ];
-
-            $this->organization_id = $organization->id;
-            $this->tenant_id = $organization->tenant_id ?? Auth::user()->tenant_id ?? null;
-            $this->service_id = $organization->service_id ?? null;
-            $this->business_id = $organization->business_id ?? null;
         }
     }
 
@@ -150,41 +167,48 @@ class InvoiceCreate extends Component
         }
     }
 
-    public function updatedSelectedSupplierId($value)
-    {
-        if ($value) {
-            $organization = Organization::find($value);
-            if ($organization) {
-                $this->supplier = [
-                    'party_name' => $organization->legal_name,
-                    'tin' => $organization->registration_number,
-                    'email' => $organization->email,
-                    'telephone' => $organization->phone,
-                    'postal_address' => [
-                        'street_name' => $organization->street_name ?? 'Unknown Street',
-                        'city_name' => $organization->city_name ?? 'Unknown City',
-                        'postal_zone' => $organization->postal_zone ?? '000000', // Default postal code
-                        'country' => 'NG',
-                    ],
-                ];
-
-                $this->organization_id = $organization->id;
-                $this->customer_id = null;
-                $this->tenant_id = $organization->tenant_id ?? Auth::user()->tenant_id ?? null;
-                $this->service_id = $organization->service_id ?? null;
-                $this->business_id = $organization->business_id ?? null;
-            }
-        }
-    }
-
     public function updatedSelectedCustomerId($value)
     {
         if ($value) {
             $customer = Customer::find($value);
+
             if ($customer) {
-                $this->customer = $customer->toPartyObject();
+                $party = $customer->toPartyObject();
                 $this->customer_id = $customer->id;
+
+                $this->customer_name = $party['party_name'] ?? '';
+                $this->customer_tin = $party['tin'] ?? '';
+                $this->customer_email = $party['email'] ?? '';
+                $this->customer_phone = $party['telephone'] ?? '';
+
+                $this->customer = [
+                    'party_name' => $this->customer_name,
+                    'tin' => $customer->tin,
+                    'email' => $customer->email,
+                    'telephone' => $this->customer_phone,
+                    'business_description' => $customer->business_description ?? '',
+                    'postal_address' => [
+                        'street_name' => $customer->street_name ?? '',
+                        'city_name' => $customer->city_name ?? '',
+                        'postal_zone' => $customer->postal_zone ?? '',
+                        'country' => 'NG',
+                    ],
+                ];
             }
+        } else {
+            $this->customer = [
+                'party_name' => '',
+                'tin' => '',
+                'email' => '',
+                'telephone' => '',
+                'business_description' => '',
+                'postal_address' => [
+                    'street_name' => '',
+                    'city_name' => '',
+                    'postal_zone' => '',
+                    'country' => 'NG',
+                ],
+            ];
         }
     }
 
@@ -200,7 +224,7 @@ class InvoiceCreate extends Component
 
     public function addLine()
     {
-        $this->invoice_lines[] = ['hsn_code' => $this->hsn_code, 'product_category' => $this->product_category, 'invoiced_quantity' => 1, 'price' => ['price_amount' => 0, 'base_quantity' => 1, 'price_unit' => 'NGN per 1'], 'item' => ['name' => '', 'description' => ''], 'order' => count($this->invoice_lines)];
+        $this->invoice_lines[] = ['hsn_code' => $this->hsn_code = $this->generateHsnCode(), 'product_category' => $this->product_category, 'invoiced_quantity' => 1, 'price' => ['price_amount' => 0, 'base_quantity' => 1, 'price_unit' => 'NGN per 1'], 'item' => ['name' => '', 'description' => ''], 'order' => count($this->invoice_lines)];
         $this->computeTotals();
     }
 
@@ -289,9 +313,9 @@ class InvoiceCreate extends Component
             // build payload for Taxly - ensure proper data types and required fields
             $payload = [
                 'channel' => 'api',
+                'business_id' => $this->business_id,
                 'invoice_reference' => $this->invoice_reference,
                 'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
-                'business_id' => $this->business_id,
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
                 'issue_time' => now()->format('H:i:s'),
@@ -340,7 +364,8 @@ class InvoiceCreate extends Component
             // validate IRN (optional)
             $irnPayload = [
                 'invoice_reference' => $this->invoice_reference,
-                'irn' => $payload['irn']
+                'irn' => $payload['irn'],
+                'business_id' => $payload['business_id'],
             ];
             $taxly->validateIrn($irnPayload);
 
@@ -397,12 +422,21 @@ class InvoiceCreate extends Component
         try {
             $this->computeTotals();
 
+            if (empty($this->customer['postal_address'])) {
+                $this->customer['postal_address'] = [
+                    'street_name' => 'Unknown Street',
+                    'city_name' => 'Unknown City',
+                    'postal_zone' => '000000',
+                    'country' => 'NG',
+                ];
+            }
+
             // build payload for Taxly validation - include all required fields
             $payload = [
                 'channel' => 'api',
+                'business_id' => $this->business_id,
                 'invoice_reference' => $this->invoice_reference,
                 'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
-                'business_id' => $this->business_id,
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
                 'issue_time' => now()->format('H:i:s'),
@@ -443,13 +477,13 @@ class InvoiceCreate extends Component
                     ],
                 ],
             ];
-
+            Log::debug('Invoice validation payload', ['payload' => $payload]);
             // call Taxly service for validation
             $cred = TaxlyCredential::first();
             $taxly = new TaxlyService($cred);
 
             // validate invoice structure
-            $response = $taxly->validateInvoice($payload);
+            $taxly->validateInvoice($payload);
 
             $this->message = 'Invoice validation successful! Ready to submit.';
             $this->dispatch('validation-success', message: 'Invoice structure is valid');
@@ -465,11 +499,12 @@ class InvoiceCreate extends Component
     public function validateIRN()
     {
         $this->validating = true;
-        $this->validate();
-
-        $this->ensureEntityIdentifiers();
 
         try {
+            $this->validate();
+
+            $this->ensureEntityIdentifiers();
+
             $this->computeTotals();
 
             // build payload for Taxly validation
@@ -479,7 +514,6 @@ class InvoiceCreate extends Component
                 'business_id' => $this->business_id,
             ];
 
-            // call Taxly service for validation
             $cred = TaxlyCredential::first();
             $taxly = new TaxlyService($cred);
 
@@ -520,7 +554,7 @@ class InvoiceCreate extends Component
         return array_map(function ($line, $index) {
             return [
                 'hsn_code' => $line['hsn_code'] ?? $this->hsn_code,
-                'product_category' => $line['product_category'] ?? '',
+                'product_category' => $line['product_category'] ?? 'General Items',
                 'invoiced_quantity' => (float) ($line['invoiced_quantity'] ?? 0),
                 'line_extension_amount' => (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)),
                 'item' => [
@@ -535,6 +569,14 @@ class InvoiceCreate extends Component
                 'order' => $index,
             ];
         }, $this->invoice_lines, array_keys($this->invoice_lines));
+    }
+
+    /**
+     * Generate a random 8-digit HSN code
+     */
+    private function generateHsnCode(): string
+    {
+        return strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8));
     }
 
     public function render()

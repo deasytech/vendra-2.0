@@ -47,9 +47,9 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Invoice Reference *</label>
-                <input wire:model.defer="invoice_reference"
+                <input wire:model.live="invoice_reference"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="INV-2024-001" />
+                    placeholder="INV-2024-001" readonly />
                 @error('invoice_reference')
                     <span class="text-sm text-red-600 mt-1 block">{{ $message }}</span>
                 @enderror
@@ -98,9 +98,9 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Company Name *</label>
-                <input wire:model.defer="supplier.party_name"
+                <input wire:model.live="supplier.party_name"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="Enter company name" />
+                    placeholder="Enter company name" readonly />
                 @error('supplier.party_name')
                     <span class="text-sm text-red-600 mt-1 block">{{ $message }}</span>
                 @enderror
@@ -108,23 +108,23 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">TIN</label>
-                <input wire:model.defer="supplier.tin"
+                <input wire:model.live="supplier.tin"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="Tax Identification Number" />
+                    placeholder="Tax Identification Number" readonly />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <input type="email" wire:model.defer="supplier.email"
+                <input type="email" wire:model.live="supplier.email"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="supplier@company.com" />
+                    placeholder="supplier@company.com" readonly />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                <input wire:model.defer="supplier.telephone"
+                <input wire:model.live="supplier.telephone"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="+234..." />
+                    placeholder="+234..." readonly />
             </div>
         </div>
     </div>
@@ -142,7 +142,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Select Customer</label>
-                <select wire:model.live.debounce.500ms="selected_customer_id"
+                <select wire:model.live="selected_customer_id"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
                     <option value="">Choose a customer...</option>
                     @foreach ($this->customers as $customer)
@@ -154,34 +154,31 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Customer Name *</label>
-                <input wire:model.defer="customer.party_name"
+                <label class="block text-sm font-medium text-gray-700 mb-2">Customer Name</label>
+                <input value="{{ $customer_name }}"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="Enter customer name" />
-                @error('customer.party_name')
-                    <span class="text-sm text-red-600 mt-1 block">{{ $message }}</span>
-                @enderror
+                    readonly />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">TIN</label>
-                <input wire:model.defer="customer.tin"
+                <input value="{{ $customer_tin }}"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="Tax Identification Number" />
+                    readonly />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <input type="email" wire:model.defer="customer.email"
+                <input type="email" value="{{ $customer_email }}"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="customer@company.com" />
+                    readonly />
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                <input wire:model.defer="customer.telephone"
+                <input value="{{ $customer_phone }}"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
-                    placeholder="+234..." />
+                    readonly />
             </div>
         </div>
     </div>
@@ -211,7 +208,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <div class="md:col-span-3">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
-                            <input wire:model.defer="invoice_lines.{{ $idx }}.item.name"
+                            <input wire:model.lazy="invoice_lines.{{ $idx }}.item.name"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 placeholder="Product or service name" />
                             @error('invoice_lines.' . $idx . '.item.name')
@@ -221,7 +218,7 @@
 
                         <div class="md:col-span-3">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Item Description *</label>
-                            <input wire:model.defer="invoice_lines.{{ $idx }}.item.description"
+                            <input wire:model.lazy="invoice_lines.{{ $idx }}.item.description"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 placeholder="Product or service description" />
                             @error('invoice_lines.' . $idx . '.item.description')
@@ -287,11 +284,11 @@
         <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex justify-between items-center mb-2">
                 <span class="text-gray-600">Subtotal:</span>
-                <span class="font-semibold">₦{{ number_format($sub_total, 2) }}</span>
+                <span class="font-semibold text-gray-700">₦{{ number_format($sub_total, 2) }}</span>
             </div>
             <div class="flex justify-between items-center mb-2">
                 <span class="text-gray-600">VAT ({{ $vat_rate }}%):</span>
-                <span class="font-semibold">₦{{ number_format($vat_amount, 2) }}</span>
+                <span class="font-semibold text-gray-700">₦{{ number_format($vat_amount, 2) }}</span>
             </div>
             <div class="border-t pt-2 flex justify-between items-center">
                 <span class="text-lg font-semibold text-gray-800">Total:</span>
@@ -323,9 +320,8 @@
         </div>
 
         <div class="flex flex-wrap gap-4">
-            <button wire:click.prevent="validateIRN"
-                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center cursor-pointer"
-                :disabled="$wire.validating">
+            <button wire:click.prevent="validateIRN" wire:loading.attr="disabled" wire:target="validateIRN"
+                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center cursor-pointer">
                 <span wire:loading.remove wire:target="validateIRN">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -333,22 +329,23 @@
                     </svg>
                     Validate IRN
                 </span>
+
                 <span wire:loading wire:target="validateIRN">
                     <svg class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg"
                         fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
                             stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2
+                5.291A7.962 7.962 0 014 12H0c0
+                3.042 1.135 5.824 3 7.938l3-2.647z">
                         </path>
                     </svg>
                     Validating...
                 </span>
             </button>
 
-            <button wire:click.prevent="validateInvoice"
-                class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center cursor-pointer"
-                :disabled="$wire.validating">
+            <button wire:click.prevent="validateInvoice" wire:loading.attr="disabled" wire:target="validateInvoice"
+                class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center cursor-pointer">
                 <span wire:loading.remove wire:target="validateInvoice">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -383,9 +380,8 @@
 
     <!-- Action Buttons -->
     <div class="flex flex-wrap gap-4 justify-end">
-        <button wire:click.prevent="submitInvoice"
-            class="px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all flex items-center font-semibold text-lg shadow-lg cursor-pointer"
-            :disabled="$wire.submitting">
+        <button wire:click.prevent="submitInvoice" wire:loading.attr="disabled" wire:target="submitInvoice"
+            class="px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all flex items-center font-semibold text-lg shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
             <span wire:loading.remove wire:target="submitInvoice">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -393,6 +389,7 @@
                 </svg>
                 Submit Invoice
             </span>
+
             <span wire:loading wire:target="submitInvoice">
                 <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
                     fill="none" viewBox="0 0 24 24">

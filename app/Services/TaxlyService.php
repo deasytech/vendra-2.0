@@ -75,8 +75,6 @@ class TaxlyService
     /** Validate invoice (structure) */
     public function validateInvoice(array $payload): array
     {
-        $url = $this->baseUrl . '/invoices/validate';
-        Log::debug('Taxly validateInvoice call', ['url' => $url, 'payload' => $payload]);
         try {
             $res = $this->client()->post('/invoices/validate', $payload);
             $res->throw();

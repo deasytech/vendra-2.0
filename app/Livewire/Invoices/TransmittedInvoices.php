@@ -104,7 +104,7 @@ class TransmittedInvoices extends Component
 
     public function render()
     {
-        $transmittedInvoices = Invoice::with(['transmissions', 'business', 'organization'])
+        $transmittedInvoices = Invoice::with(['transmissions', 'customer', 'organization'])
             ->where('transmit', '!=', 'PENDING')
             ->latest()
             ->paginate(10);

@@ -193,7 +193,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <flux:dropdown position="bottom" align="end">
-                                    <flux:button variant="ghost" size="sm" icon="ellipsis-horizontal">
+                                    <flux:button variant="primary" size="sm" icon="ellipsis-vertical">
                                         <span class="sr-only">Open menu</span>
                                     </flux:button>
 

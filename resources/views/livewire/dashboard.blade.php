@@ -71,6 +71,19 @@
                         </div>
 
                         <div>
+                            <label for="postal_address.state_name"
+                                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                State <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" wire:model="postal_address.state_name" id="postal_address.state_name"
+                                class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
+                                placeholder="Lagos">
+                            @error('postal_address.state_name')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
                             <label for="postal_address.postal_zone"
                                 class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                                 Postal Code
@@ -141,7 +154,8 @@
 
     <!-- Success Message -->
     @if (session('success'))
-        <div class="mb-4 rounded-md bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
+        <div
+            class="mb-4 rounded-md bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">

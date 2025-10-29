@@ -33,7 +33,8 @@
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Customer Name *</label>
                     <input type="text" id="name" wire:model="name"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('name') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('name') border-red-500 @enderror">
                     @error('name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -43,7 +44,8 @@
                     <label for="tin" class="block text-sm font-medium text-gray-700 mb-2">TIN (Tax Identification
                         Number)</label>
                     <input type="text" id="tin" wire:model="tin"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('tin') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('tin') border-red-500 @enderror">
                     @error('tin')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -52,7 +54,8 @@
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                     <input type="email" id="email" wire:model="email"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('email') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('email') border-red-500 @enderror">
                     @error('email')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -61,7 +64,8 @@
                 <div>
                     <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                     <input type="text" id="phone" wire:model="phone"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('phone') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('phone') border-red-500 @enderror">
                     @error('phone')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -71,7 +75,8 @@
                     <label for="business_description" class="block text-sm font-medium text-gray-700 mb-2">Business
                         Description</label>
                     <textarea id="business_description" wire:model="business_description" rows="3"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('business_description') border-red-500 @enderror"></textarea>
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('business_description') border-red-500 @enderror"></textarea>
                     @error('business_description')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -85,7 +90,8 @@
                 <div class="md:col-span-2">
                     <label for="street_name" class="block text-sm font-medium text-gray-700 mb-2">Street Address</label>
                     <input type="text" id="street_name" wire:model="street_name"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('street_name') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('street_name') border-red-500 @enderror">
                     @error('street_name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -94,7 +100,8 @@
                 <div>
                     <label for="city_name" class="block text-sm font-medium text-gray-700 mb-2">City</label>
                     <input type="text" id="city_name" wire:model="city_name"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('city_name') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('city_name') border-red-500 @enderror">
                     @error('city_name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -103,7 +110,8 @@
                 <div>
                     <label for="state" class="block text-sm font-medium text-gray-700 mb-2">State</label>
                     <input type="text" id="state" wire:model="state"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('state') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('state') border-red-500 @enderror">
                     @error('state')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -112,7 +120,8 @@
                 <div>
                     <label for="postal_zone" class="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
                     <input type="text" id="postal_zone" wire:model="postal_zone"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('postal_zone') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('postal_zone') border-red-500 @enderror">
                     @error('postal_zone')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -121,7 +130,8 @@
                 <div>
                     <label for="country" class="block text-sm font-medium text-gray-700 mb-2">Country</label>
                     <select id="country" wire:model="country"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('country') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700"
+                        @error('country') border-red-500 @enderror">
                         <option value="NG">Nigeria</option>
                         <option value="GH">Ghana</option>
                         <option value="US">United States</option>

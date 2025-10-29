@@ -14,7 +14,7 @@ class InvoicesIndex extends Component
 {
     public function render()
     {
-        $invoices = Invoice::with(['business', 'organization'])->latest()->paginate(10);
+        $invoices = Invoice::with(['customer', 'organization'])->latest()->paginate(10);
 
         return view('livewire.invoices.invoices-index', [
             'invoices' => $invoices,
@@ -49,7 +49,7 @@ class InvoicesIndex extends Component
     public function transmitInvoice($invoiceId)
     {
         try {
-            $invoice = Invoice::with(['business', 'organization'])->findOrFail($invoiceId);
+            $invoice = Invoice::with(['customer', 'organization'])->findOrFail($invoiceId);
 
             Log::info('Initiating async invoice transmission', [
                 'invoice_id' => $invoice->id,
@@ -63,10 +63,10 @@ class InvoicesIndex extends Component
             }
 
             // ✅ Prevent duplicate transmission requests
-            if ($invoice->transmit !== 'PENDING') {
-                $this->dispatch('error', 'This invoice has already been transmitted.');
-                return;
-            }
+            // if ($invoice->transmit !== 'PENDING') {
+            //     $this->dispatch('error', 'This invoice has already been transmitted.');
+            //     return;
+            // }
 
             // ✅ Initialize TaxlyService
             $cred = TaxlyCredential::first();

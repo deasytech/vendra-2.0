@@ -3,6 +3,7 @@
 namespace App\Livewire\Customers;
 
 use App\Models\Customer;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class CustomerCreate extends Component
@@ -36,6 +37,7 @@ class CustomerCreate extends Component
     $this->validate();
 
     Customer::create([
+      'tenant_id' => Auth::user()->tenant_id ?? null,
       'name' => $this->name,
       'tin' => $this->tin,
       'email' => $this->email,

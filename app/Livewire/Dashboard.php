@@ -18,6 +18,7 @@ class Dashboard extends Component
   public $postal_address = [
     'street_name' => '',
     'city_name' => '',
+    'state_name' => '',
     'postal_zone' => '',
     'country' => ''
   ];
@@ -40,6 +41,7 @@ class Dashboard extends Component
           : [
             'street_name' => '',
             'city_name' => '',
+            'state_name' => '',
             'postal_zone' => '',
             'country' => ''
           ]);
@@ -59,6 +61,7 @@ class Dashboard extends Component
       'registration_number' => 'nullable|string|max:100',
       'postal_address.street_name' => 'required|string|max:255',
       'postal_address.city_name' => 'required|string|max:255',
+      'postal_address.state_name' => 'required|string|max:255',
       'postal_address.postal_zone' => 'nullable|string|max:100',
       'postal_address.country' => 'required|string|size:2',
       'description' => 'nullable|string|max:1000',
