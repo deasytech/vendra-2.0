@@ -17,15 +17,27 @@ class TaxlyService
     public function __construct(?TaxlyCredential $credential = null)
     {
         $this->credential = $credential ?? TaxlyCredential::first();
-        $this->baseUrl = $this->credential->base_url ?? config('services.taxly.base_url', 'https://dev.taxly.ng/api/v1');
+        $this->baseUrl = $this->credential->base_url
+            ?? config('services.taxly.base_url', 'https://dev.taxly.ng/api/v1');
 
-        if ($this->credential && $this->credential->auth_type === 'api_key' && $this->credential->api_key) {
-            $this->headers['X-Api-Key'] = $this->credential->api_key;
-        } elseif ($this->credential && $this->credential->token) {
-            $this->headers['Authorization'] = 'Bearer ' . $this->credential->token;
+        // Determine the API key or token
+        $apiKey = $this->credential->api_key
+            ?? config('services.taxly.api_key')   // fallback to .env key
+            ?? env('TAXLY_API_KEY');              // direct env fallback
+
+        $token = $this->credential->token ?? null;
+
+        // Set headers
+        if ($this->credential && $this->credential->auth_type === 'api_key' && $apiKey) {
+            $this->headers['X-Api-Key'] = $apiKey;
+        } elseif ($token) {
+            $this->headers['Authorization'] = 'Bearer ' . $token;
+        } elseif ($apiKey) {
+            // Fallback in case no auth_type set but key exists
+            $this->headers['X-Api-Key'] = $apiKey;
         }
 
-        // default accept json
+        // Always accept JSON
         $this->headers['Accept'] = 'application/json';
     }
 

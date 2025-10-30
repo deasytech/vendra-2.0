@@ -60,9 +60,8 @@ class Login extends Component
             return;
         }
 
-        return redirect()->route('dashboard')->withHeaders([
-            'Cache-Control' => 'no-cache, no-store, must-revalidate',
-        ]);
+        // Use Livewire's redirect method for consistent SPA-like navigation
+        $this->redirect(route('dashboard'), navigate: true);
     }
 
     /**
