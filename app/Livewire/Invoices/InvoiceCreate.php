@@ -375,6 +375,12 @@ class InvoiceCreate extends Component
             // submit invoice
             $response = $taxly->submitInvoice($payload);
 
+            if (!$invoice || !$invoice->exists) {
+                $this->addError('transmission', 'Invoice not found or not persisted before transmission.');
+                Log::error('Invoice not found or not persisted before transmission.', ['invoice' => $invoice]);
+                return;
+            }
+
             // record transmission
             $invoice->update(['irn' => $payload['irn']]);
             $invoice->transmissions()->create([

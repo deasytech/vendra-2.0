@@ -37,6 +37,10 @@ class TaxlyService
             $this->headers['X-Api-Key'] = $apiKey;
         }
 
+        if (empty($this->headers['X-Api-Key']) && empty($this->headers['Authorization'])) {
+            Log::warning('TaxlyService: No API key or token found. Falling back to .env key.');
+        }
+
         // Always accept JSON
         $this->headers['Accept'] = 'application/json';
     }

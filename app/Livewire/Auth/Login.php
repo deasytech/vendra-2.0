@@ -56,12 +56,12 @@ class Login extends Component
         $intended = Session::pull('url.intended');
 
         if ($intended) {
-            $this->redirect($intended, navigate: true);
-            return;
+            // Use standard redirect for intended URLs
+            return redirect()->to($intended);
         }
 
-        // Use Livewire's redirect method for consistent SPA-like navigation
-        $this->redirect(route('dashboard'), navigate: true);
+        // Use Laravel's redirect helper for a full page redirect to dashboard
+        return redirect()->route('dashboard');
     }
 
     /**

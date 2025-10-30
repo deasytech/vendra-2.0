@@ -44,7 +44,7 @@
         </div>
     </div>
     @fluxScripts
-    {{-- @livewireScripts --}}
+    @livewireScripts
 </body>
 
 </html>
