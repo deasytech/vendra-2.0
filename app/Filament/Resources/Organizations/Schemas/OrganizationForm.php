@@ -15,9 +15,6 @@ class OrganizationForm
     {
         return $schema
             ->components([
-                TextInput::make('tenant_id')
-                    ->required()
-                    ->numeric(),
                 TextInput::make('service_id'),
                 TextInput::make('tin'),
                 TextInput::make('business_id'),

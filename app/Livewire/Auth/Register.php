@@ -99,6 +99,7 @@ class Register extends Component
             'business_id'           => $validated['business_id'] ?? null,
             'service_id'            => $validated['service_id'] ?? null,
             'tenant_id'             => $tenant->id,
+            'email'         => $validated['email'],
         ]);
 
         // Use legal_name if available, otherwise fall back to the user's name

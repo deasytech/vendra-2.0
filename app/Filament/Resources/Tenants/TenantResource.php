@@ -15,6 +15,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class TenantResource extends Resource
 {
@@ -23,6 +24,19 @@ class TenantResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Organizations';
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = Auth::user();
+
+        if ($user && $user->tenant_id) {
+            $query->where('id', $user->tenant_id);
+        }
+
+        return $query;
+    }
 
     public static function form(Schema $schema): Schema
     {

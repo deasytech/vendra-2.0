@@ -53,7 +53,6 @@ class Dashboard extends Component
   protected function rules(): array
   {
     return [
-      'email' => 'required|email|max:255',
       'phone' => 'required|string|max:20',
       'registration_number' => 'nullable|string|max:100',
       'postal_address.street_name' => 'required|string|max:255',
@@ -104,7 +103,6 @@ class Dashboard extends Component
 
       // Update the organization with the form data
       $this->organization->update([
-        'email' => $this->email,
         'phone' => $this->phone,
         'registration_number' => $this->registration_number,
         'postal_address' => $this->postal_address,

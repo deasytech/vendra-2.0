@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Models\User;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -11,6 +12,7 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class UsersTable
 {
@@ -23,6 +25,11 @@ class UsersTable
                     ->getStateUsing(fn($record) => $record->organization?->legal_name ?? 'Super Landlord'),
                 ToggleColumn::make('is_landlord')
                     ->label('Landlord')
+                    ->disabled(function () {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+                        return ! ($user instanceof User && $user->hasRole('super admin'));
+                    })
                     ->sortable(),
                 TextColumn::make('name')
                     ->searchable(),

@@ -16,10 +16,12 @@ class Tenant extends Model
     {
         return $this->hasMany(Organization::class);
     }
+
     public function taxlyCredential()
     {
         return $this->hasOne(TaxlyCredential::class);
     }
+
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
