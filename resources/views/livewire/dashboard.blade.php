@@ -12,16 +12,6 @@
                 </p>
                 <form wire:submit.prevent="saveOrganizationDetails" class="space-y-4">
                     <div>
-                        <label for="legal_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Legal Name <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text" wire:model="legal_name" id="legal_name"
-                            class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
-                        @error('legal_name')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
                         <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Email Address <span class="text-red-500">*</span>
                         </label>
@@ -154,8 +144,7 @@
 
     <!-- Success Message -->
     @if (session('success'))
-        <div
-            class="mb-4 rounded-md bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
+        <div class="mb-4 rounded-md bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
@@ -385,12 +374,12 @@
                                 </h3>
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating a new
                                     invoice.</p>
-                                <div class="mt-6">
+                                {{-- <div class="mt-6">
                                     <a href="{{ route('invoice.create') }}" wire:navigate
                                         class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                         Create Invoice
                                     </a>
-                                </div>
+                                </div> --}}
                             </div>
                         @endforelse
                     </div>

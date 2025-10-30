@@ -11,7 +11,6 @@ class Dashboard extends Component
   public $organization;
 
   // Form fields for organization completion
-  public $legal_name;
   public $email;
   public $phone;
   public $registration_number;
@@ -30,7 +29,6 @@ class Dashboard extends Component
 
     // Initialize form fields with existing data
     if ($this->organization) {
-      $this->legal_name = $this->organization->legal_name ?? '';
       $this->email = $this->organization->email ?? '';
       $this->phone = $this->organization->phone ?? '';
       $this->registration_number = $this->organization->registration_number ?? '';
@@ -55,7 +53,6 @@ class Dashboard extends Component
   protected function rules(): array
   {
     return [
-      'legal_name' => 'required|string|max:255',
       'email' => 'required|email|max:255',
       'phone' => 'required|string|max:20',
       'registration_number' => 'nullable|string|max:100',
@@ -82,7 +79,7 @@ class Dashboard extends Component
     }
 
     // Check if required fields are missing (excluding description)
-    $requiredFields = ['legal_name', 'email', 'phone'];
+    $requiredFields = ['postal_address', 'email', 'phone'];
 
     foreach ($requiredFields as $field) {
       $value = $this->organization->$field;
@@ -107,7 +104,6 @@ class Dashboard extends Component
 
       // Update the organization with the form data
       $this->organization->update([
-        'legal_name' => $this->legal_name,
         'email' => $this->email,
         'phone' => $this->phone,
         'registration_number' => $this->registration_number,
