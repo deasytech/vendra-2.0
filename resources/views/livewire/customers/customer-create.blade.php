@@ -94,7 +94,7 @@
                 <div>
                     <label for="city_name" class="block text-sm font-medium text-gray-700 mb-2">City</label>
                     <input type="text" id="city_name" wire:model="city_name"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('city_name') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 @error('city_name') border-red-500 @enderror">
                     @error('city_name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -103,7 +103,7 @@
                 <div>
                     <label for="state" class="block text-sm font-medium text-gray-700 mb-2">State</label>
                     <input type="text" id="state" wire:model="state"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('state') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 @error('state') border-red-500 @enderror">
                     @error('state')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -112,7 +112,7 @@
                 <div>
                     <label for="postal_zone" class="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
                     <input type="text" id="postal_zone" wire:model="postal_zone"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('postal_zone') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 @error('postal_zone') border-red-500 @enderror">
                     @error('postal_zone')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -121,7 +121,7 @@
                 <div>
                     <label for="country" class="block text-sm font-medium text-gray-700 mb-2">Country</label>
                     <select id="country" wire:model="country"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent @error('country') border-red-500 @enderror">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 @error('country') border-red-500 @enderror">
                         <option value="NG">Nigeria</option>
                         <option value="GH">Ghana</option>
                         <option value="US">United States</option>
