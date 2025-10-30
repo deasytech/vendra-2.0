@@ -252,7 +252,7 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Customers</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            {{ App\Models\Customer::where('tenant_id', auth()->user()->tenant_id)->count() + App\Models\Organization::where('tenant_id', auth()->user()->tenant_id)->count() }}
+                            {{ App\Models\Customer::where('tenant_id', auth()->user()->tenant_id)->count() }}
                         </p>
                         <p class="mt-1 text-xs text-green-600 dark:text-green-400">
                             <span class="inline-flex items-center">

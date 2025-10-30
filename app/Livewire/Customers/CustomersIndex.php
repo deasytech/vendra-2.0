@@ -3,6 +3,7 @@
 namespace App\Livewire\Customers;
 
 use App\Models\Customer;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class CustomersIndex extends Component
@@ -23,7 +24,7 @@ class CustomersIndex extends Component
 
     public function render()
     {
-        $customers = Customer::latest()->paginate(10);
+        $customers = Customer::where('tenant_id', Auth::user()->tenant_id)->latest()->paginate(10);
 
         return view('livewire.customers.customers-index', [
             'customers' => $customers,
