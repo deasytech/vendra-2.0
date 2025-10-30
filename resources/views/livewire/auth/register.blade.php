@@ -6,8 +6,8 @@
 
     <form wire:submit.prevent="register" class="flex flex-col gap-6">
         <!-- Name -->
-        <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name"
-            :placeholder="__('Full name')" />
+        {{-- <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name"
+            :placeholder="__('Full name')" /> --}}
 
         <!-- Email Address -->
         <flux:input wire:model="email" :label="__('Email address')" type="email" required autocomplete="email"

@@ -31,7 +31,6 @@ class Register extends Component
     public function register()
     {
         $validated = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -56,7 +55,7 @@ class Register extends Component
         }
 
         $tenant = Tenant::create([
-            'name'              => $validated['name'],
+            'name'              => 'New Tenant',
             'entity_id'         => $validated['entity_id'] ?? null,
         ]);
 
@@ -77,6 +76,10 @@ class Register extends Component
                     $validated['business_id'] = $organization['id'] ?? null;
                     $validated['irn_template'] = $organization['irn_template'] ?? null;
 
+                    $tenant->update([
+                        'name' => $validated['legal_name'] ?? 'New Tenant',
+                    ]);
+
                     // Extract service_id from irn_template
                     if (!empty($validated['irn_template'])) {
                         $parts = explode('-', $validated['irn_template']);
@@ -95,6 +98,7 @@ class Register extends Component
             'legal_name'            => $validated['legal_name'] ?? $validated['name'],
             'business_id'           => $validated['business_id'] ?? null,
             'service_id'            => $validated['service_id'] ?? null,
+            'tenant_id'             => $tenant->id,
         ]);
 
         // Use legal_name if available, otherwise fall back to the user's name
