@@ -19,7 +19,8 @@ class UsersTable
         return $table
             ->columns([
                 TextColumn::make('organization.legal_name')
-                    ->sortable(),
+                    ->sortable()
+                    ->getStateUsing(fn($record) => $record->organization?->legal_name ?? 'Super Landlord'),
                 ToggleColumn::make('is_landlord')
                     ->label('Landlord')
                     ->sortable(),

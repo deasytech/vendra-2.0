@@ -21,8 +21,7 @@ class UserForm
                         ->label('Organization')
                         ->relationship('organization', 'legal_name')
                         ->searchable()
-                        ->preload()
-                        ->required(),
+                        ->preload(),
                     TextInput::make('mfa'),
                     TextInput::make('name')
                         ->required(),
