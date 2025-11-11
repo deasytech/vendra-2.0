@@ -29,9 +29,15 @@ class TaxlyWebhookController extends Controller
       $invoice = Invoice::where('irn', $irn)->first();
 
       if ($invoice) {
-        // Update invoice transmission status
-        $transmitStatus = $status === 'success' ? 'TRANSMITTED' : 'FAILED';
-        $invoice->update(['transmit' => $transmitStatus]);
+        // Handle different webhook status updates
+        if ($status === 'transmitting') {
+          // Intermediate status: transmission has started but not completed
+          $invoice->update(['transmit' => 'TRANSMITTING']);
+        } else {
+          // Final status: transmission completed (success or failed)
+          $transmitStatus = $status === 'success' ? 'TRANSMITTED' : 'FAILED';
+          $invoice->update(['transmit' => $transmitStatus]);
+        }
 
         // Create or update transmission record
         $transmissionData = [

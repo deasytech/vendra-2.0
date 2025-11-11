@@ -290,6 +290,9 @@ class InvoiceCreate extends Component
         DB::beginTransaction();
 
         try {
+            // Generate IRN for the invoice
+            $irn = $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd');
+
             // create internal invoice record
             $invoice = Invoice::create([
                 'tenant_id' => $this->tenant_id,
@@ -303,6 +306,7 @@ class InvoiceCreate extends Component
                 'accounting_supplier_party' => $this->supplier,
                 'accounting_customer_party' => $this->customer,
                 'legal_monetary_total' => $this->legal_monetary_total,
+                'irn' => $irn, // Store IRN for future transmission
             ]);
 
             foreach ($this->invoice_lines as $i => $line) {
@@ -310,24 +314,24 @@ class InvoiceCreate extends Component
                 InvoiceLine::create(array_merge($line, ['invoice_id' => $invoice->id]));
             }
 
-            // build payload for Taxly - ensure proper data types and required fields
+            // build payload for Taxly submission (but NOT transmission)
             $payload = [
                 'channel' => 'api',
                 'business_id' => $this->business_id,
                 'invoice_reference' => $this->invoice_reference,
-                'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
+                'irn' => $irn,
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
                 'issue_time' => now()->format('H:i:s'),
                 'invoice_type_code' => $this->invoice_type_code,
                 'document_currency_code' => $this->document_currency_code,
-                'tax_currency_code' => $this->document_currency_code, // Same as document currency
+                'tax_currency_code' => $this->document_currency_code,
                 'payment_status' => 'PENDING',
                 'accounting_supplier_party' => $this->supplier,
                 'accounting_customer_party' => $this->customer,
                 'legal_monetary_total' => $this->legal_monetary_total,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly(),
-                // Add required fields based on TaxlyInvoicePayloadBuilder
+                // Add required fields for submission
                 'payment_means' => [
                     [
                         'payment_means_code' => '10',
@@ -357,43 +361,34 @@ class InvoiceCreate extends Component
                 ],
             ];
 
-            // call Taxly service
+            Log::debug('Invoice submission payload', ['payload' => $payload]);
+
+            // call Taxly service to submit to FIRS (but not transmit)
             $cred = TaxlyCredential::first();
             $taxly = new TaxlyService($cred);
 
-            // validate IRN (optional)
-            $irnPayload = [
-                'invoice_reference' => $this->invoice_reference,
-                'irn' => $payload['irn'],
-                'business_id' => $payload['business_id'],
-            ];
-            $taxly->validateIrn($irnPayload);
-
-            // validate invoice structure
-            $taxly->validateInvoice($payload);
-
-            // submit invoice
+            // submit invoice to FIRS (this is the submission step, not transmission)
             $response = $taxly->submitInvoice($payload);
 
-            if (!$invoice || !$invoice->exists) {
-                $this->addError('transmission', 'Invoice not found or not persisted before transmission.');
-                Log::error('Invoice not found or not persisted before transmission.', ['invoice' => $invoice]);
-                return;
-            }
+            Log::info('Invoice submitted to FIRS', [
+                'invoice_id' => $invoice->id,
+                'response' => $response,
+            ]);
 
-            // record transmission
-            $invoice->update(['irn' => $payload['irn']]);
+            // record successful submission (but not transmission) - status should be PENDING
             $invoice->transmissions()->create([
                 'action' => 'submit',
                 'request_payload' => $payload,
                 'response_payload' => $response,
-                'status' => 'success'
+                'status' => 'PENDING'
             ]);
 
             DB::commit();
 
-            $this->message = 'Invoice submitted successfully.';
-            $this->dispatch('invoiceSubmitted', $invoice->id);
+            $this->message = 'Invoice submitted to FIRS successfully. Ready for transmission.';
+
+            // Redirect to invoice index to enable transmission
+            return redirect()->route('invoices.index');
         } catch (Throwable $e) {
             DB::rollBack();
             // store failure transmission if invoice exists
@@ -406,12 +401,12 @@ class InvoiceCreate extends Component
                         'status' => 'failure'
                     ]);
                 } catch (Throwable $inner) {
-                    Log::error('Failed to store transmission failure: ' . $inner->getMessage());
+                    Log::error('Failed to store submission failure: ' . $inner->getMessage());
                 }
             }
 
-            $this->addError('submission', 'Failed to submit invoice: ' . $e->getMessage());
-            $this->message = 'Failed to submit invoice. See errors.';
+            $this->addError('submission', 'Failed to submit invoice to FIRS: ' . $e->getMessage());
+            $this->message = 'Failed to submit invoice to FIRS. See errors.';
             Log::error('Invoice submission error', ['error' => $e->getMessage()]);
         } finally {
             $this->submitting = false;

@@ -73,16 +73,19 @@ class InvoicesIndex extends Component
             $taxly = new TaxlyService($cred);
 
             $webhookUrl = route('taxly.webhook.invoice');
+            Log::info('Using webhook URL for transmission', [
+                'webhook_url' => $webhookUrl,
+            ]);
 
             // ✅ Call transmitByIrn
             $response = $taxly->transmitByIrn($invoice->irn, $webhookUrl);
 
-            // ✅ Mark as "transmission started" (not yet completed)
+            // ✅ Keep status as PENDING until webhook confirms transmission started
             $invoice->update([
-                'transmit' => 'TRANSMITTING',
+                'transmit' => 'PENDING',
                 'metadata' => array_merge($invoice->metadata ?? [], [
-                    'transmission_started_at' => now()->toDateTimeString(),
-                    'transmission_message' => $response['message'] ?? 'Transmission started',
+                    'transmission_initiated_at' => now()->toDateTimeString(),
+                    'transmission_message' => $response['message'] ?? 'Transmission initiated',
                 ]),
             ]);
 

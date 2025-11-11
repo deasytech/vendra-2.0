@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Webhook\TaxlyWebhookController as WebhookTaxlyWebhookController;
 use App\Livewire\Customers\CustomerCreate;
 use App\Livewire\Customers\CustomerEdit;
 use App\Livewire\Customers\CustomersIndex;
@@ -48,8 +47,5 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customers/{customer}/edit', CustomerEdit::class)->name('customers.edit');
     Route::get('/invoice-exchange', TransmittedInvoices::class)->name('invoice-exchange');
 });
-
-Route::post('/taxly/webhook/invoice', [WebhookTaxlyWebhookController::class, 'handle'])
-    ->name('taxly.webhook.invoice');
 
 require __DIR__ . '/auth.php';
