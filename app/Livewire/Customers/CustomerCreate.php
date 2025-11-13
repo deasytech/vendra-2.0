@@ -22,14 +22,14 @@ class CustomerCreate extends Component
   protected $rules = [
     'name' => 'required|string|max:255',
     'tin' => 'nullable|string|max:20',
-    'email' => 'nullable|email|max:255',
-    'phone' => 'nullable|string|max:20',
+    'email' => 'required|email|max:255',
+    'phone' => 'required|string|max:20',
     'business_description' => 'nullable|string',
-    'street_name' => 'nullable|string|max:255',
-    'city_name' => 'nullable|string|max:255',
-    'postal_zone' => 'nullable|string|max:20',
-    'state' => 'nullable|string|max:255',
-    'country' => 'nullable|string|max:2',
+    'street_name' => 'required|string|max:255',
+    'city_name' => 'required|string|max:255',
+    'postal_zone' => 'required|string|max:20',
+    'state' => 'required|string|max:255',
+    'country' => 'required|string|max:2',
   ];
 
   public function save()

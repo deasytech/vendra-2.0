@@ -142,27 +142,35 @@ class InvoiceCreate extends Component
     private function loadInvoiceTypes()
     {
         try {
-            $cred = TaxlyCredential::first();
-            $taxly = new TaxlyService($cred);
-            $response = $taxly->getInvoiceTypes();
+            // $cred = TaxlyCredential::first();
+            // $taxly = new TaxlyService($cred);
+            // $response = $taxly->getInvoiceTypes();
 
-            if (isset($response['data']) && is_array($response['data'])) {
-                $this->invoice_types = $response['data'];
-            } else {
-                // Fallback to default types if API fails
-                $this->invoice_types = [
-                    ['code' => '396', 'value' => 'Standard Invoice'],
-                    ['code' => '381', 'value' => 'Commercial Invoice'],
-                    ['code' => '389', 'value' => 'Proforma Invoice'],
-                ];
-            }
+            // if (isset($response['data']) && is_array($response['data'])) {
+            //     $this->invoice_types = $response['data'];
+            // } else {
+            // Fallback to default types if API fails
+            $this->invoice_types = [
+                ['code' => '396', 'value' => 'Standard Invoice'],
+                ['code' => '380', 'value' => 'Credit Note'],
+                ['code' => '381', 'value' => 'Commercial Invoice'],
+                ['code' => '384', 'value' => 'Debit Note'],
+                ['code' => '385', 'value' => 'Self Billed Invoice'],
+                ['code' => '388', 'value' => 'Factored Invoice'],
+                ['code' => '389', 'value' => 'Statement of Account'],
+            ];
+            // }
         } catch (\Throwable $e) {
             Log::warning('Failed to load invoice types from Taxly API', ['error' => $e->getMessage()]);
             // Fallback to default types
             $this->invoice_types = [
                 ['code' => '396', 'value' => 'Standard Invoice'],
+                ['code' => '380', 'value' => 'Credit Note'],
                 ['code' => '381', 'value' => 'Commercial Invoice'],
-                ['code' => '389', 'value' => 'Proforma Invoice'],
+                ['code' => '384', 'value' => 'Debit Note'],
+                ['code' => '385', 'value' => 'Self Billed Invoice'],
+                ['code' => '388', 'value' => 'Factored Invoice'],
+                ['code' => '389', 'value' => 'Statement of Account'],
             ];
         }
     }
