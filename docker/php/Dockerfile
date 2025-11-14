@@ -21,7 +21,13 @@ RUN apt-get update && apt-get install -y \
         pcntl \
         bcmath \
         gd \
-        intl
+        intl \
+    && pecl install redis \
+    && docker-php-ext-enable redis
+
+# Install Node.js 20.x
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -34,6 +40,9 @@ COPY . /var/www
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+# Install Node dependencies and build frontend assets
+RUN npm install && npm run build && rm -rf node_modules
 
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www \
