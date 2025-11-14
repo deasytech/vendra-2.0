@@ -63,10 +63,10 @@ class InvoicesIndex extends Component
             }
 
             // ✅ Prevent duplicate transmission requests
-            // if ($invoice->transmit !== 'PENDING') {
-            //     $this->dispatch('error', 'This invoice has already been transmitted.');
-            //     return;
-            // }
+            if ($invoice->transmit !== 'PENDING') {
+                $this->dispatch('error', 'This invoice has already been transmitted.');
+                return;
+            }
 
             // ✅ Initialize TaxlyService
             $cred = TaxlyCredential::first();
@@ -80,14 +80,16 @@ class InvoicesIndex extends Component
             // ✅ Call transmitByIrn
             $response = $taxly->transmitByIrn($invoice->irn, $webhookUrl);
 
-            // ✅ Keep status as PENDING until webhook confirms transmission started
-            $invoice->update([
-                'transmit' => 'PENDING',
-                'metadata' => array_merge($invoice->metadata ?? [], [
-                    'transmission_initiated_at' => now()->toDateTimeString(),
-                    'transmission_message' => $response['message'] ?? 'Transmission initiated',
-                ]),
-            ]);
+            // ✅ Change invoice transmit status to TRANSMITTING
+            if ($response['code'] === 200 || ($response['data']['ok'] ?? true)) {
+                $invoice->update([
+                    'transmit' => 'TRANSMITTING',
+                    'metadata' => array_merge($invoice->metadata ?? [], [
+                        'transmission_initiated_at' => now()->toDateTimeString(),
+                        'transmission_message' => $response['message'] ?? 'Transmission initiated',
+                    ]),
+                ]);
+            }
 
             // ✅ Log transmission initiation
             $invoice->transmissions()->create([

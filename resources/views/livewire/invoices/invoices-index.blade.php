@@ -152,6 +152,9 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Exchange
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions</th>
                     </tr>
                 </thead>
@@ -190,6 +193,16 @@
                                 <div class="text-sm font-medium text-gray-900">
                                     ₦{{ number_format($invoice->legal_monetary_total['payable_amount'] ?? 0, 2) }}
                                 </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    @if ($invoice->transmit === 'TRANSMITTING') bg-yellow-100 text-yellow-800
+                                    @elseif($invoice->transmit === 'TRANSMITTED') bg-green-100 text-green-800
+                                    @elseif($invoice->transmit === 'FAILED') bg-red-100 text-red-800
+                                    @else bg-gray-100 text-gray-800 @endif">
+                                    {{ $invoice->transmit }}
+                                </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <flux:dropdown position="bottom" align="end">

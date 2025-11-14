@@ -21,7 +21,7 @@ return new class extends Migration
                 'TRANSMITTED',
                 'ACKNOWLEDGED',
                 'FAILED',
-            ])->default('TRANSMITTING')->after('metadata');
+            ])->default('PENDING')->after('metadata');
         });
     }
 
