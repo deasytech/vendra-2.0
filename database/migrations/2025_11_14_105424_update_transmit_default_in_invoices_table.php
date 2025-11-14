@@ -12,16 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('invoices', function (Blueprint $table) {
-            $table->dropColumn('transmitted');
-
-            // Add new enum column
             $table->enum('transmit', [
                 'PENDING',
                 'TRANSMITTING',
                 'TRANSMITTED',
                 'ACKNOWLEDGED',
                 'FAILED',
-            ])->default('TRANSMITTING')->after('metadata');
+            ])
+                ->default('PENDING')
+                ->change();
         });
     }
 
@@ -31,10 +30,15 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('invoices', function (Blueprint $table) {
-            $table->dropColumn('transmit');
-
-            // Restore old column
-            $table->boolean('transmitted')->default(false)->after('metadata');
+            $table->enum('transmit', [
+                'PENDING',
+                'TRANSMITTING',
+                'TRANSMITTED',
+                'ACKNOWLEDGED',
+                'FAILED',
+            ])
+                ->default('TRANSMITTING')
+                ->change();
         });
     }
 };
