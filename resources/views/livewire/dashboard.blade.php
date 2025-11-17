@@ -16,9 +16,9 @@
                             class="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Registration Number <span class="text-slate-500">(optional)</span>
                         </label>
-                        <input type="email" wire:model="registration_number" id="registration_number"
+                        <input type="text" wire:model="registration_number" id="registration_number"
                             class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
-                        @error('email')
+                        @error('registration_number')
                             <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
                         @enderror
                     </div>
