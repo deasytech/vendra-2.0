@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vendra-app
+  namespace: vendra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vendra-app
+  template:
+    metadata:
+      labels:
+        app: vendra-app
+    spec:
+      initContainers:
+      - name: copy-files
+        image: registry.digitalocean.com/vendra-registry/vendra-app:latest
+        command: ['sh', '-c', 'cp -r /var/www/* /shared-files/ && chown -R www-data:www-data /shared-files/storage /shared-files/bootstrap/cache']
+        volumeMounts:
+        - name: shared-files
+          mountPath: /shared-files
+      containers:
+      - name: app
+        image: registry.digitalocean.com/vendra-registry/vendra-app:latest
+        ports:
+        - containerPort: 9000
+        envFrom:
+        - configMapRef:
+            name: vendra-config
+        - secretRef:
+            name: vendra-secret
+        volumeMounts:
+        - name: shared-files
+          mountPath: /var/www
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: shared-files
+          mountPath: /var/www
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "150m"
+      volumes:
+      - name: shared-files
+        emptyDir: {}
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+  namespace: vendra
+spec:
+  selector:
+    app: vendra-app
+  ports:
+  - name: php-fpm
+    protocol: TCP
+    port: 9000
+    targetPort: 9000
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: vendra
+spec:
+  selector:
+    app: vendra-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP

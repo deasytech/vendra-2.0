@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Laravel
+/vendor
+.env*
+!.env.example
+storage/logs/*
+!storage/logs/.gitkeep
+
+# Tests
+tests/
+.phpunit.result.cache
+phpunit.xml
+
+# Docker
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Kubernetes
+k8s/
+
+# Scripts
+*.sh
+
+# OS
+.DS_Store
+Thumbs.db

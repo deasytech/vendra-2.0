@@ -1,0 +1,125 @@
+name: Deploy to DigitalOcean Kubernetes
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: registry.digitalocean.com/vendra-registry
+  APP_IMAGE: vendra-app
+  QUEUE_IMAGE: vendra-queue
+  CLUSTER_NAME: vendra-cluster
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 600
+
+      - name: Build and push App image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/php/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:latest,${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:${{ github.sha }}
+          platforms: linux/amd64
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:buildcache,mode=max
+
+      - name: Build and push Queue image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/queue/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:latest,${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:${{ github.sha }}
+          platforms: linux/amd64
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache,mode=max
+
+      - name: Set up kubectl
+        run: |
+          doctl kubernetes cluster kubeconfig save ${{ secrets.CLUSTER_ID }}
+
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Apply all Kubernetes configurations
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/mysql.yaml
+          kubectl apply -f k8s/redis.yaml
+          kubectl apply -f k8s/nginx.yaml
+          kubectl apply -f k8s/app.yaml
+          kubectl apply -f k8s/queue.yaml
+
+          # Wait for MySQL to be ready
+          kubectl wait --for=condition=ready pod -l app=mysql -n vendra --timeout=300s || true
+
+          # Wait for Redis to be ready
+          kubectl wait --for=condition=ready pod -l app=redis -n vendra --timeout=300s || true
+
+          # Restart deployments to use new images
+          kubectl rollout restart deployment/vendra-app -n vendra
+          kubectl rollout restart deployment/vendra-queue -n vendra
+
+          # Wait for rollouts to complete
+          kubectl rollout status deployment/vendra-app -n vendra --timeout=300s
+          kubectl rollout status deployment/vendra-queue -n vendra --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          echo "=== Deployment Status ==="
+          kubectl get pods -n vendra
+          echo ""
+          echo "=== Services ==="
+          kubectl get services -n vendra
+          echo ""
+          echo "=== Ingress ==="
+          kubectl get ingress -n vendra
+
+      - name: Run database migrations
+        run: |
+          # Get the app pod name
+          POD=$(kubectl get pod -n vendra -l app=vendra-app -o jsonpath="{.items[0].metadata.name}")
+
+          # Run migrations
+          kubectl exec -n vendra $POD -c app -- php artisan migrate --force
+        continue-on-error: true
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "### Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit Message:** ${{ github.event.head_commit.message }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Application URL:** https://einv.palbillr.com" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Pod Status" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -n vendra >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
