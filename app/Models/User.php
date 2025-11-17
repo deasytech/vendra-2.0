@@ -25,7 +25,8 @@ class User extends Authenticatable
         'password',
         'is_landlord',
         'tenant_id',
-        'organization_id'
+        'organization_id',
+        'logo_path',
     ];
 
     /**

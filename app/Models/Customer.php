@@ -22,6 +22,7 @@ class Customer extends Model
         'postal_zone',
         'state',
         'country',
+        'logo_path',
     ];
 
     public function invoices()

@@ -61,12 +61,13 @@ class TaxlyService
     /** Taxpayer login */
     public function taxPayerLogin(array $payload): array
     {
+        Log::info('Taxpayer Login', ['url' => $this->baseUrl . '/auth/tax-payer-login']);
         try {
             $res = $this->client()->post('/auth/tax-payer-login', $payload);
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly validateIrn error', ['error' => $e->getMessage()]);
             throw $e;
@@ -81,7 +82,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly validateIrn error', ['error' => $e->getMessage()]);
             throw $e;
@@ -96,7 +97,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly validateInvoice error', ['error' => $e->getMessage()]);
             throw $e;
@@ -111,7 +112,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly submitInvoice error', ['error' => $e->getMessage()]);
             throw $e;
@@ -130,7 +131,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly transmitByIrn error', ['error' => $e->getMessage()]);
             throw $e;
@@ -144,7 +145,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly getTransmittedInvoiceByIrn error', ['error' => $e->getMessage()]);
             throw $e;
@@ -158,7 +159,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly confirmTransmittingInvoice error', ['error' => $e->getMessage()]);
             throw $e;
@@ -172,7 +173,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly confirmByIrn error', ['error' => $e->getMessage()]);
             throw $e;
@@ -186,7 +187,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly downloadByIrn error', ['error' => $e->getMessage()]);
             throw $e;
@@ -213,7 +214,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly getInvoiceTypes error', ['error' => $e->getMessage()]);
             throw $e;
@@ -228,7 +229,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly getPaymentMeans error', ['error' => $e->getMessage()]);
             throw $e;
@@ -243,7 +244,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly getTaxCategories error', ['error' => $e->getMessage()]);
             throw $e;
@@ -258,7 +259,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly getTin error', ['error' => $e->getMessage()]);
             throw $e;
@@ -273,7 +274,7 @@ class TaxlyService
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
-            $this->handleRequestException($e);
+            throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly getEntity error', ['error' => $e->getMessage()]);
             throw $e;
