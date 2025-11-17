@@ -32,6 +32,7 @@ class InvoiceCreate extends Component
     public $legal_monetary_total = [];
 
     public $selected_customer_id;
+    public $customer_type = 'customer';
 
     public $customer_name;
     public $customer_tin;

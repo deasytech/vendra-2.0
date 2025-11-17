@@ -19,6 +19,7 @@ class OrganizationFactory extends Factory
       'legal_name' => $this->faker->company(),
       'email' => $this->faker->companyEmail(),
       'phone' => $this->faker->phoneNumber(),
+      'street_name' => $this->faker->streetAddress(),
       'city_name' => $this->faker->city(),
       'postal_zone' => $this->faker->postcode(),
       'description' => $this->faker->sentence(),

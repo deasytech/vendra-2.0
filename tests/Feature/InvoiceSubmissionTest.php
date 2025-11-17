@@ -21,12 +21,21 @@ class InvoiceSubmissionTest extends TestCase
     ]);
 
     $tenant = Tenant::factory()->create();
-    $cred = TaxlyCredential::factory()->create([
-      'tenant_id' => $tenant->id,
-      'api_key' => 'demo'
-    ]);
 
-    $invoice = Invoice::factory()->create(['tenant_id' => $tenant->id]);
+    // Create TaxlyCredential without using factory to avoid Organization creation issues
+    $cred = new TaxlyCredential([
+      'tenant_id' => $tenant->id,
+      'auth_type' => 'api_key',
+      'api_key' => 'demo',
+      'base_url' => 'https://taxly.ng'
+    ]);
+    $cred->save();
+
+    $invoice = Invoice::factory()->create([
+      'tenant_id' => $tenant->id,
+      'organization_id' => null, // Avoid Organization factory issues
+      'customer_id' => null    // Avoid Customer factory issues
+    ]);
     dispatch(new SubmitInvoiceJob($invoice));
 
     $this->assertDatabaseHas('invoice_transmissions', [

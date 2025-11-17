@@ -37,7 +37,7 @@ class TaxlyWebhookTest extends TestCase
     ];
 
     // Send webhook request
-    $response = $this->postJson('/api/vendra/webhook', $webhookPayload);
+    $response = $this->postJson('/api/taxly/webhook/invoice', $webhookPayload);
 
     // Assert response
     $response->assertStatus(200)
@@ -82,7 +82,7 @@ class TaxlyWebhookTest extends TestCase
     ];
 
     // Send webhook request
-    $response = $this->postJson('/api/vendra/webhook', $webhookPayload);
+    $response = $this->postJson('/api/taxly/webhook/invoice', $webhookPayload);
 
     // Assert response
     $response->assertStatus(200);
@@ -102,7 +102,7 @@ class TaxlyWebhookTest extends TestCase
   public function test_webhook_handles_missing_irn()
   {
     // Send webhook without IRN
-    $response = $this->postJson('/api/vendra/webhook', [
+    $response = $this->postJson('/api/taxly/webhook/invoice', [
       'status' => 'success',
       'message' => 'No IRN provided'
     ]);
@@ -123,7 +123,7 @@ class TaxlyWebhookTest extends TestCase
       'message' => 'Invoice not found'
     ];
 
-    $response = $this->postJson('/api/vendra/webhook', $webhookPayload);
+    $response = $this->postJson('/api/taxly/webhook/invoice', $webhookPayload);
 
     $response->assertStatus(200);
 
