@@ -44,6 +44,9 @@ class InvoiceCreate extends Component
     public $validating = false;
     public $submit_to_firs = false;
 
+    public $withholding_tax_rate = 5.0;
+    public $taxes = [];
+
     // VAT and totals
     public $vat_rate = 7.5; // 7.5% VAT
     public $sub_total = 0;
@@ -52,6 +55,7 @@ class InvoiceCreate extends Component
 
     // Dynamic data
     public $invoice_types = [];
+    public $currencies = [];
 
     public $hsn_code, $product_category;
 
@@ -88,6 +92,8 @@ class InvoiceCreate extends Component
         $this->issue_date = now()->format('Y-m-d');
         $this->due_date = now()->addDays(30)->format('Y-m-d');
         $this->loadInvoiceTypes();
+        $this->loadCurrencies();
+        $this->loadTaxes();
 
         $this->invoice_lines = [
             [
@@ -174,6 +180,51 @@ class InvoiceCreate extends Component
                 ['code' => '389', 'value' => 'Statement of Account'],
             ];
         }
+    }
+
+    private function loadCurrencies()
+    {
+        $this->currencies = [
+            [
+                'symbol' => '₦',
+                'name' => 'Nigerian Naira',
+                'code' => 'NGN',
+            ],
+            [
+                'symbol' => '$',
+                'name' => 'US Dollar',
+                'code' => 'USD',
+            ],
+            [
+                'symbol' => 'CA$',
+                'name' => 'Canadian Dollar',
+                'code' => 'CAD',
+            ],
+            [
+                'symbol' => '€',
+                'name' => 'Euro',
+                'code' => 'EUR',
+            ],
+            [
+                'symbol' => '£',
+                'name' => 'British Pound Sterling',
+                'code' => 'GBP',
+            ],
+            [
+                'symbol' => 'GH₵',
+                'name' => 'Ghanaian Cedi',
+                'code' => 'GHS',
+            ],
+        ];
+    }
+
+    private function loadTaxes()
+    {
+        $this->taxes = [
+            ['code' => 'STANDARD_VAT', 'name' => 'Standard Value-Added Tax', 'percent' => 7.5],
+            ['code' => 'ZERO_VAT', 'name' => 'Zero Value-Added Tax', 'percent' => 0.0],
+            ['code' => 'ZERO_GST', 'name' => 'Zero Goods and Services Tax', 'percent' => 0.0],
+        ];
     }
 
     public function updatedSelectedCustomerId($value)
@@ -400,13 +451,15 @@ class InvoiceCreate extends Component
             return redirect()->route('invoices.index');
         } catch (Throwable $e) {
             DB::rollBack();
-            // store failure transmission if invoice exists
+
+            $readableError = $this->extractReadableFirsError($e);
+
             if (!empty($invoice ?? null)) {
                 try {
                     $invoice->transmissions()->create([
                         'action' => 'submit',
                         'request_payload' => $payload ?? null,
-                        'response_payload' => ['error' => $e->getMessage()],
+                        'response_payload' => ['error' => $readableError],
                         'status' => 'failure'
                     ]);
                 } catch (Throwable $inner) {
@@ -414,9 +467,10 @@ class InvoiceCreate extends Component
                 }
             }
 
-            $this->addError('submission', 'Failed to submit invoice to FIRS: ' . $e->getMessage());
-            $this->message = 'Failed to submit invoice to FIRS. See errors.';
-            Log::error('Invoice submission error', ['error' => $e->getMessage()]);
+            $this->addError('submission', $readableError);
+            $this->message = $readableError;
+
+            Log::error('Invoice submission error', ['error' => $readableError]);
         } finally {
             $this->submitting = false;
         }
@@ -498,9 +552,11 @@ class InvoiceCreate extends Component
             $this->message = 'Invoice validation successful! Ready to submit.';
             $this->dispatch('validation-success', message: 'Invoice structure is valid');
         } catch (Throwable $e) {
-            $this->addError('validation', 'Validation failed: ' . $e->getMessage());
-            $this->message = 'Validation failed. Please check your invoice data.';
-            Log::error('Invoice validation error', ['error' => $e->getMessage()]);
+            $readableError = $this->extractReadableFirsError($e);
+            $this->addError('validation', $readableError);
+            $this->message = $readableError;
+
+            Log::error('Invoice validation error', ['error' => $readableError]);
         } finally {
             $this->validating = false;
         }
@@ -533,9 +589,11 @@ class InvoiceCreate extends Component
             $this->message = 'IRN validation successful! Ready to submit.';
             $this->dispatch('validation-success', message: 'IRN structure is valid');
         } catch (Throwable $e) {
-            $this->addError('validation', 'Validation failed: ' . $e->getMessage());
-            $this->message = 'Validation failed. Please check your irn data.';
-            Log::error('IRN validation error', ['error' => $e->getMessage()]);
+            $readableError = $this->extractReadableFirsError($e);
+            $this->addError('validation', $readableError);
+            $this->message = $readableError;
+
+            Log::error('IRN validation error', ['error' => $readableError]);
         } finally {
             $this->validating = false;
         }
@@ -592,5 +650,35 @@ class InvoiceCreate extends Component
     public function render()
     {
         return view('livewire.invoices.invoice-create');
+    }
+
+    public function extractReadableFirsError(Throwable $e)
+    {
+        // Attempt to extract JSON body from the exception message
+        preg_match('/\{.*\}/s', $e->getMessage(), $matches);
+
+        if (!empty($matches)) {
+            $json = json_decode($matches[0], true);
+
+            // If JSON is valid and structured
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $error = $json['data']['error'] ?? null;
+
+                if (!empty($error['details'])) {
+                    return $error['details'];
+                }
+
+                if (!empty($error['public_message'])) {
+                    return $error['public_message'];
+                }
+
+                if (!empty($json['message'])) {
+                    return $json['message'];
+                }
+            }
+        }
+
+        // Fallback to generic message
+        return $e->getMessage();
     }
 }
