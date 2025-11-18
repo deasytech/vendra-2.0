@@ -60,7 +60,7 @@ class Dashboard extends Component
       'postal_address.state_name' => 'required|string|max:255',
       'postal_address.postal_zone' => 'nullable|string|max:100',
       'postal_address.country' => 'required|string|size:2',
-      'description' => 'nullable|string|max:1000',
+      'description' => 'nullable|string|min:50|max:1000',
     ];
   }
 

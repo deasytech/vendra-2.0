@@ -1,5 +1,17 @@
 <div class="max-w-7xl mx-auto p-6">
     <!-- Toast Notifications -->
+    @if (session()->has('success'))
+        <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 5000)" x-show="show" x-transition class="fixed top-4 right-4 z-50">
+            <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clip-rule="evenodd" />
+                </svg>
+                <span>{{ session('success') }}</span>
+            </div>
+        </div>
+    @endif
     <div x-data="{
         showSuccess: false,
         showError: false,
@@ -114,7 +126,10 @@
                 <div>
                     <p class="text-sm text-gray-600">Total Value</p>
                     <p class="text-2xl font-bold text-gray-800">
-                        ₦{{ number_format($invoices->sum(function ($invoice) {return $invoice->legal_monetary_total['payable_amount'] ?? 0;}),2) }}
+                        @php
+                            $currencySymbol = '₦';
+                        @endphp
+                        {{ $currencySymbol }}{{ number_format($invoices->sum(function ($invoice) {return $invoice->legal_monetary_total['payable_amount'] ?? 0;}),2) }}
                     </p>
                 </div>
                 <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,13 +158,15 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Reference</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Issue
                             Date</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Customer</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Payment Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Total
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Exchange
@@ -191,7 +208,27 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">
-                                    ₦{{ number_format($invoice->legal_monetary_total['payable_amount'] ?? 0, 2) }}
+                                    @php
+                                        $symbol = '₦';
+                                        switch ($invoice->document_currency_code) {
+                                            case 'USD':
+                                                $symbol = '$';
+                                                break;
+                                            case 'EUR':
+                                                $symbol = '€';
+                                                break;
+                                            case 'GBP':
+                                                $symbol = '£';
+                                                break;
+                                            case 'CAD':
+                                                $symbol = 'CA$';
+                                                break;
+                                            case 'GHS':
+                                                $symbol = 'GH₵';
+                                                break;
+                                        }
+                                    @endphp
+                                    {{ $symbol }}{{ number_format($invoice->legal_monetary_total['payable_amount'] ?? 0, 2) }}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">

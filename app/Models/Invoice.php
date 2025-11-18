@@ -20,6 +20,7 @@ class Invoice extends Model
         'issue_date',
         'due_date',
         'invoice_type_code',
+        'document_currency_code',
         'payment_status',
         'note',
         'payment_terms_note',

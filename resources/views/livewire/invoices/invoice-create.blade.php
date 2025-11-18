@@ -44,7 +44,7 @@
             Invoice Details
         </h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Invoice Reference *</label>
                 <input wire:model.live="invoice_reference"
@@ -78,6 +78,19 @@
                     @foreach ($invoice_types as $type)
                         <option value="{{ $type['code'] ?? ($type['id'] ?? ($type['value'] ?? '396')) }}">
                             {{ $type['value'] ?? ($type['label'] ?? ($type['description'] ?? 'Unknown Type')) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                <select wire:model.live="selected_currency"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
+                    <option value="">Select currency...</option>
+                    @foreach ($currencies as $currency)
+                        <option value="{{ $currency['code'] }}">
+                            {{ $currency['symbol'] }} - {{ $currency['name'] }}
                         </option>
                     @endforeach
                 </select>
@@ -238,7 +251,8 @@
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price (₦) *</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price
+                                ({{ $selected_currency_symbol }}) *</label>
                             <input type="number" step="0.01"
                                 wire:model.live.debounce.500ms="invoice_lines.{{ $idx }}.price.price_amount"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
@@ -249,10 +263,22 @@
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Total (₦)</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tax Type</label>
+                            <select wire:model.live="invoice_lines.{{ $idx }}.selected_tax"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700">
+                                @foreach ($taxes as $tax)
+                                    <option value="{{ $tax['code'] }}">{{ $tax['name'] }} ({{ $tax['percent'] }}%)
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Total
+                                ({{ $selected_currency_symbol }})</label>
                             <div
                                 class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg font-semibold text-gray-700">
-                                ₦{{ number_format(((float) ($line['price']['price_amount'] ?: 0)) * ((float) ($line['invoiced_quantity'] ?: 0)), 2) }}
+                                {{ $selected_currency_symbol }}{{ number_format(((float) ($line['price']['price_amount'] ?: 0)) * ((float) ($line['invoiced_quantity'] ?: 0)), 2) }}
                             </div>
                         </div>
 
@@ -271,6 +297,99 @@
         </div>
     </div>
 
+    <!-- Allowance/Charge Section -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Allowances & Charges
+            </h2>
+            <div class="flex gap-2">
+                <button wire:click.prevent="addAllowanceCharge(true)"
+                    class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center cursor-pointer text-sm">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Charge
+                </button>
+                <button wire:click.prevent="addAllowanceCharge(false)"
+                    class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center cursor-pointer text-sm">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                    </svg>
+                    Add Discount
+                </button>
+            </div>
+        </div>
+
+        @if (count($allowance_charges) > 0)
+            <div class="space-y-3">
+                @foreach ($allowance_charges as $idx => $charge)
+                    <div class="border border-gray-200 rounded-lg p-3 bg-gray-50"
+                        wire:key="charge-{{ $idx }}">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    {{ $charge['charge_indicator'] ? 'Charge' : 'Discount' }} Description
+                                </label>
+                                <input type="text" wire:model="allowance_charges.{{ $idx }}.reason"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                                    placeholder="{{ $charge['charge_indicator'] ? 'e.g., Late fee, Service charge' : 'e.g., Early payment discount' }}" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Amount
+                                    ({{ $selected_currency_symbol }})
+                                </label>
+                                <input type="number" step="0.01"
+                                    wire:model.live="allowance_charges.{{ $idx }}.amount"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                                    placeholder="0.00" />
+                            </div>
+                            <div>
+                                <button wire:click.prevent="removeAllowanceCharge({{ $idx }})"
+                                    class="w-full px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <p class="text-gray-500 text-center py-4">No allowances or charges added yet.</p>
+        @endif
+    </div>
+
+    <!-- Withholding Tax Section -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Withholding Tax
+        </h2>
+
+        <div class="flex items-center space-x-4">
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" wire:model.live="withholding_tax_enabled" class="mr-2 rounded">
+                <span class="text-gray-700">Apply Withholding Tax</span>
+            </label>
+            @if ($withholding_tax_enabled)
+                <span class="text-sm text-gray-600">
+                    ({{ $withholding_tax_rate }}% of total:
+                    {{ $selected_currency_symbol }}{{ number_format($withholding_tax_amount, 2) }})
+                </span>
+            @endif
+        </div>
+    </div>
+
     <!-- Totals Section -->
     <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
         <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
@@ -284,15 +403,25 @@
         <div class="bg-gray-50 rounded-lg p-4">
             <div class="flex justify-between items-center mb-2">
                 <span class="text-gray-600">Subtotal:</span>
-                <span class="font-semibold text-gray-700">₦{{ number_format($sub_total, 2) }}</span>
+                <span
+                    class="font-semibold text-gray-700">{{ $selected_currency_symbol }}{{ number_format($sub_total, 2) }}</span>
             </div>
             <div class="flex justify-between items-center mb-2">
-                <span class="text-gray-600">VAT ({{ $vat_rate }}%):</span>
-                <span class="font-semibold text-gray-700">₦{{ number_format($vat_amount, 2) }}</span>
+                <span class="text-gray-600">VAT:</span>
+                <span
+                    class="font-semibold text-gray-700">{{ $selected_currency_symbol }}{{ number_format($vat_amount, 2) }}</span>
             </div>
+            @if ($withholding_tax_enabled)
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-gray-600">Withholding Tax ({{ $withholding_tax_rate }}%):</span>
+                    <span
+                        class="font-semibold text-red-600">-{{ $selected_currency_symbol }}{{ number_format($withholding_tax_amount, 2) }}</span>
+                </div>
+            @endif
             <div class="border-t pt-2 flex justify-between items-center">
                 <span class="text-lg font-semibold text-gray-800">Total:</span>
-                <span class="text-2xl font-bold text-blue-600">₦{{ number_format($total_amount, 2) }}</span>
+                <span
+                    class="text-2xl font-bold text-blue-600">{{ $selected_currency_symbol }}{{ number_format($total_amount, 2) }}</span>
             </div>
         </div>
     </div>

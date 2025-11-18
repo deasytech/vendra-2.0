@@ -46,16 +46,21 @@ class InvoiceCreate extends Component
 
     public $withholding_tax_rate = 5.0;
     public $taxes = [];
+    public $withholding_tax_enabled = false;
+    public $selected_currency = 'NGN';
+    public $selected_currency_symbol = '₦';
 
     // VAT and totals
     public $vat_rate = 7.5; // 7.5% VAT
     public $sub_total = 0;
     public $vat_amount = 0;
     public $total_amount = 0;
+    public $withholding_tax_amount = 0;
 
     // Dynamic data
     public $invoice_types = [];
     public $currencies = [];
+    public $allowance_charges = [];
 
     public $hsn_code, $product_category;
 
@@ -284,7 +289,20 @@ class InvoiceCreate extends Component
 
     public function addLine()
     {
-        $this->invoice_lines[] = ['hsn_code' => $this->hsn_code = $this->generateHsnCode(), 'product_category' => $this->product_category, 'invoiced_quantity' => 1, 'price' => ['price_amount' => 0, 'base_quantity' => 1, 'price_unit' => 'NGN per 1'], 'item' => ['name' => '', 'description' => ''], 'order' => count($this->invoice_lines)];
+        $this->invoice_lines[] = [
+            'hsn_code' => $this->hsn_code = $this->generateHsnCode(),
+            'product_category' => $this->product_category,
+            'invoiced_quantity' => 1,
+            'price' => [
+                'price_amount' => 0,
+                'base_quantity' => 1,
+                'price_unit' => $this->selected_currency . ' per 1'
+            ],
+            'item' => ['name' => '', 'description' => ''],
+            'order' => count($this->invoice_lines),
+            'selected_tax' => 'STANDARD_VAT',
+            'tax_amount' => 0
+        ];
         $this->computeTotals();
     }
 
@@ -317,18 +335,37 @@ class InvoiceCreate extends Component
     protected function computeTotals()
     {
         $lineTotal = 0;
+        $totalVatAmount = 0;
 
-        foreach ($this->invoice_lines as $line) {
+        foreach ($this->invoice_lines as $index => $line) {
             $price = (float) ($line['price']['price_amount'] ?? 0);
             $qty = (float) ($line['invoiced_quantity'] ?? 1);
+            $selectedTax = $line['selected_tax'] ?? 'STANDARD_VAT';
 
+            // Calculate line extension
             $lineExtension = $price * $qty;
             $lineTotal += $lineExtension;
+
+            // Calculate tax for this line
+            $taxRate = $this->getTaxRate($selectedTax);
+            $lineTaxAmount = round($lineExtension * ($taxRate / 100), 2);
+            $totalVatAmount += $lineTaxAmount;
+
+            // Update line tax amount
+            $this->invoice_lines[$index]['tax_amount'] = $lineTaxAmount;
         }
 
         $this->sub_total = round($lineTotal, 2);
-        $this->vat_amount = round($this->sub_total * ($this->vat_rate / 100), 2);
+        $this->vat_amount = round($totalVatAmount, 2);
         $this->total_amount = round($this->sub_total + $this->vat_amount, 2);
+
+        // Apply withholding tax if enabled
+        if ($this->withholding_tax_enabled) {
+            $this->withholding_tax_amount = round($this->total_amount * ($this->withholding_tax_rate / 100), 2);
+            $this->total_amount = round($this->total_amount - $this->withholding_tax_amount, 2);
+        } else {
+            $this->withholding_tax_amount = 0;
+        }
 
         $this->legal_monetary_total = [
             'tax_exclusive_amount' => $this->sub_total,
@@ -336,6 +373,69 @@ class InvoiceCreate extends Component
             'line_extension_amount' => $this->sub_total,
             'payable_amount' => $this->total_amount,
         ];
+    }
+
+    public function updatedSelectedCurrency($value)
+    {
+        $currency = collect($this->currencies)->firstWhere('code', $value);
+        $this->selected_currency_symbol = $currency['symbol'] ?? '₦';
+        $this->document_currency_code = $value;
+
+        // Update price units for all invoice lines
+        foreach ($this->invoice_lines as $index => $line) {
+            $this->invoice_lines[$index]['price']['price_unit'] = $value . ' per 1';
+        }
+
+        $this->computeTotals();
+    }
+
+    public function updatedWithholdingTaxEnabled($value)
+    {
+        $this->computeTotals();
+    }
+
+    public function updatedInvoiceLinesSelectedTax($value, $key)
+    {
+        $this->computeTotals();
+    }
+
+    private function getTaxRate($taxCode)
+    {
+        $tax = collect($this->taxes)->firstWhere('code', $taxCode);
+        return $tax ? $tax['percent'] : 0;
+    }
+
+    public function addAllowanceCharge($isCharge = true)
+    {
+        $this->allowance_charges[] = [
+            'charge_indicator' => $isCharge,
+            'amount' => 0,
+            'reason' => ''
+        ];
+        $this->computeTotals();
+    }
+
+    public function removeAllowanceCharge($index)
+    {
+        if (isset($this->allowance_charges[$index])) {
+            array_splice($this->allowance_charges, $index, 1);
+            $this->computeTotals();
+        }
+    }
+
+    public function updatedAllowanceCharges($value, $key)
+    {
+        $this->computeTotals();
+    }
+
+    private function getFormattedAllowanceCharges()
+    {
+        return array_map(function ($charge) {
+            return [
+                'charge_indicator' => $charge['charge_indicator'],
+                'amount' => (float) ($charge['amount'] ?? 0)
+            ];
+        }, $this->allowance_charges);
     }
 
     public function submitInvoice()
@@ -362,6 +462,7 @@ class InvoiceCreate extends Component
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
                 'invoice_type_code' => $this->invoice_type_code,
+                'document_currency_code' => $this->document_currency_code,
                 'payment_status' => 'PENDING',
                 'accounting_supplier_party' => $this->supplier,
                 'accounting_customer_party' => $this->customer,
@@ -398,12 +499,7 @@ class InvoiceCreate extends Component
                         'payment_due_date' => $this->due_date,
                     ],
                 ],
-                'allowance_charge' => [
-                    [
-                        'charge_indicator' => true,
-                        'amount' => $this->total_amount,
-                    ],
-                ],
+                'allowance_charge' => $this->getFormattedAllowanceCharges(),
                 'tax_total' => [
                     [
                         'tax_amount' => $this->vat_amount,
@@ -448,6 +544,7 @@ class InvoiceCreate extends Component
             $this->message = 'Invoice submitted to FIRS successfully. Ready for transmission.';
 
             // Redirect to invoice index to enable transmission
+            session()->flash('success', $this->message);
             return redirect()->route('invoices.index');
         } catch (Throwable $e) {
             DB::rollBack();
@@ -519,12 +616,7 @@ class InvoiceCreate extends Component
                         'payment_due_date' => $this->due_date,
                     ],
                 ],
-                'allowance_charge' => [
-                    [
-                        'charge_indicator' => true,
-                        'amount' => $this->total_amount,
-                    ],
-                ],
+                'allowance_charge' => $this->getFormattedAllowanceCharges(),
                 'tax_total' => [
                     [
                         'tax_amount' => $this->vat_amount,
@@ -595,7 +687,10 @@ class InvoiceCreate extends Component
             $this->addError('validation', $readableError);
             $this->message = $readableError;
 
-            Log::error('IRN validation error', ['error' => $readableError]);
+            Log::error('IRN validation error', [
+                'error' => $readableError,
+                'full_exception' => $e->getMessage() // Log full message separately for debugging
+            ]);
         } finally {
             $this->validating = false;
         }

@@ -114,7 +114,7 @@
                     </div>
                     <div>
                         <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Description
+                            Description <span class="text-slate-500">(optional, min. 50 characters if provided)</span>
                         </label>
                         <textarea wire:model="description" id="description" rows="2"
                             class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"></textarea>
@@ -145,7 +145,8 @@
 
     <!-- Success Message -->
     @if (session('success'))
-        <div class="mb-4 rounded-md bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
+        <div
+            class="mb-4 rounded-md bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">

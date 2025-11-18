@@ -71,8 +71,12 @@
                             <td class="p-3">{{ $item->hsn_code ?? '-' }}</td>
                             <td class="p-3">{{ $item->product_category ?? '-' }}</td>
                             <td class="p-3 text-right">{{ $item->quantity }}</td>
-                            <td class="p-3 text-right">₦{{ $item->price['price_amount'] }}</td>
-                            <td class="p-3 text-right">₦{{ $item->line_total }}</td>
+                            <td class="p-3 text-right">
+                                {{ $invoice->document_currency_code === 'NGN' ? '₦' : ($invoice->document_currency_code === 'USD' ? '$' : ($invoice->document_currency_code === 'EUR' ? '€' : ($invoice->document_currency_code === 'GBP' ? '£' : ($invoice->document_currency_code === 'CAD' ? 'CA$' : ($invoice->document_currency_code === 'GHS' ? 'GH₵' : $invoice->document_currency_code))))) }}{{ $item->price['price_amount'] }}
+                            </td>
+                            <td class="p-3 text-right">
+                                {{ $invoice->document_currency_code === 'NGN' ? '₦' : ($invoice->document_currency_code === 'USD' ? '$' : ($invoice->document_currency_code === 'EUR' ? '€' : ($invoice->document_currency_code === 'GBP' ? '£' : ($invoice->document_currency_code === 'CAD' ? 'CA$' : ($invoice->document_currency_code === 'GHS' ? 'GH₵' : $invoice->document_currency_code))))) }}{{ $item->line_total }}
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -102,19 +106,19 @@
                 @endphp
                 <div class="flex justify-between">
                     <span class="font-semibold">Line Extension:</span>
-                    <span>₦{{ number_format($lineExtension, 2) }}</span>
+                    <span>{{ $invoice->document_currency_code === 'NGN' ? '₦' : ($invoice->document_currency_code === 'USD' ? '$' : ($invoice->document_currency_code === 'EUR' ? '€' : ($invoice->document_currency_code === 'GBP' ? '£' : ($invoice->document_currency_code === 'CAD' ? 'CA$' : ($invoice->document_currency_code === 'GHS' ? 'GH₵' : $invoice->document_currency_code))))) }}{{ number_format($lineExtension, 2) }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="font-semibold">Tax Exclusive:</span>
-                    <span>₦{{ number_format($taxExclusive, 2) }}</span>
+                    <span>{{ $invoice->document_currency_code === 'NGN' ? '₦' : ($invoice->document_currency_code === 'USD' ? '$' : ($invoice->document_currency_code === 'EUR' ? '€' : ($invoice->document_currency_code === 'GBP' ? '£' : ($invoice->document_currency_code === 'CAD' ? 'CA$' : ($invoice->document_currency_code === 'GHS' ? 'GH₵' : $invoice->document_currency_code))))) }}{{ number_format($taxExclusive, 2) }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="font-semibold">Tax Inclusive:</span>
-                    <span>₦{{ number_format($taxInclusive, 2) }}</span>
+                    <span>{{ $invoice->document_currency_code === 'NGN' ? '₦' : ($invoice->document_currency_code === 'USD' ? '$' : ($invoice->document_currency_code === 'EUR' ? '€' : ($invoice->document_currency_code === 'GBP' ? '£' : ($invoice->document_currency_code === 'CAD' ? 'CA$' : ($invoice->document_currency_code === 'GHS' ? 'GH₵' : $invoice->document_currency_code))))) }}{{ number_format($taxInclusive, 2) }}</span>
                 </div>
                 <div class="flex justify-between border-t pt-2 text-base font-bold">
                     <span>Grand Total:</span>
-                    <span>₦{{ number_format($taxInclusive, 2) }}</span>
+                    <span>{{ $invoice->document_currency_code === 'NGN' ? '₦' : ($invoice->document_currency_code === 'USD' ? '$' : ($invoice->document_currency_code === 'EUR' ? '€' : ($invoice->document_currency_code === 'GBP' ? '£' : ($invoice->document_currency_code === 'CAD' ? 'CA$' : ($invoice->document_currency_code === 'GHS' ? 'GH₵' : $invoice->document_currency_code))))) }}{{ number_format($taxInclusive, 2) }}</span>
                 </div>
             </div>
         </div>
