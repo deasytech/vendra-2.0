@@ -580,6 +580,8 @@ class InvoiceCreate extends Component
                 'business_id' => $this->business_id,
             ];
 
+            Log::debug('IRN validation payload', ['payload' => $payload]);
+
             $cred = TaxlyCredential::first();
             $taxly = new TaxlyService($cred);
 
