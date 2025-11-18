@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'firs' => [
+        'public_key' => env('FIRS_PUBLIC_KEY'),
+        'certificate' => env('FIRS_CERTIFICATE'),
+    ],
+
     'taxly' => [
         'base_url' => env('TAXLY_BASE_URL', 'https://dev.taxly.ng/api/v1'),
         'api_key' => env('TAXLY_API_KEY'),
