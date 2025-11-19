@@ -259,7 +259,7 @@
                                         <flux:menu.item icon="paper-airplane"
                                             wire:click="transmitInvoice({{ $invoice->id }})"
                                             wire:loading.attr="disabled">
-                                            {{ __('Transmit to Taxly') }}
+                                            {{ __('Transmit to FIRS') }}
                                         </flux:menu.item>
 
                                         <flux:menu.separator />

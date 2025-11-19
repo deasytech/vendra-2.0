@@ -7,6 +7,7 @@ use App\Services\TaxlyService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
@@ -50,122 +51,123 @@ class InvoicesTable
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make(),
-                    Action::make('Transmit')
-                        ->icon('heroicon-o-paper-airplane')
-                        ->color('primary')
-                        ->requiresConfirmation()
-                        ->label('Transmit to FIRS')
-                        ->action(function (Invoice $record) {
-                            if (empty($record->irn)) {
-                                Notification::make()
-                                    ->title('IRN Missing')
-                                    ->body('This invoice does not have a valid IRN and cannot be transmitted.')
-                                    ->danger()
-                                    ->send();
-                                return;
-                            }
+                    DeleteAction::make(),
+                    // Action::make('Transmit')
+                    //     ->icon('heroicon-o-paper-airplane')
+                    //     ->color('primary')
+                    //     ->requiresConfirmation()
+                    //     ->label('Transmit to FIRS')
+                    //     ->action(function (Invoice $record) {
+                    //         if (empty($record->irn)) {
+                    //             Notification::make()
+                    //                 ->title('IRN Missing')
+                    //                 ->body('This invoice does not have a valid IRN and cannot be transmitted.')
+                    //                 ->danger()
+                    //                 ->send();
+                    //             return;
+                    //         }
 
-                            try {
-                                $service = new TaxlyService($record->tenant->taxlyCredential);
-                                $response = $service->transmitByIrn($record->irn);
+                    //         try {
+                    //             $service = new TaxlyService($record->tenant->taxlyCredential);
+                    //             $response = $service->transmitByIrn($record->irn);
 
-                                $record->transmissions()->create([
-                                    'action' => 'transmit',
-                                    'response_payload' => $response,
-                                    'status' => 'success',
-                                ]);
+                    //             $record->transmissions()->create([
+                    //                 'action' => 'transmit',
+                    //                 'response_payload' => $response,
+                    //                 'status' => 'success',
+                    //             ]);
 
-                                $record->update(['transmit' => 'TRANSMITTING']);
+                    //             $record->update(['transmit' => 'TRANSMITTING']);
 
-                                Notification::make()
-                                    ->title('Invoice is Transmitting')
-                                    ->body("Invoice {$record->invoice_reference} has started transmitting to FIRS.")
-                                    ->success()
-                                    ->send();
-                            } catch (Throwable $e) {
-                                $record->transmissions()->create([
-                                    'action' => 'transmit',
-                                    'response_payload' => ['error' => $e->getMessage()],
-                                    'status' => 'failed',
-                                ]);
+                    //             Notification::make()
+                    //                 ->title('Invoice is Transmitting')
+                    //                 ->body("Invoice {$record->invoice_reference} has started transmitting to FIRS.")
+                    //                 ->success()
+                    //                 ->send();
+                    //         } catch (Throwable $e) {
+                    //             $record->transmissions()->create([
+                    //                 'action' => 'transmit',
+                    //                 'response_payload' => ['error' => $e->getMessage()],
+                    //                 'status' => 'failed',
+                    //             ]);
 
-                                Notification::make()
-                                    ->title('Transmission Failed')
-                                    ->body($e->getMessage())
-                                    ->danger()
-                                    ->send();
-                            }
-                        }),
+                    //             Notification::make()
+                    //                 ->title('Transmission Failed')
+                    //                 ->body($e->getMessage())
+                    //                 ->danger()
+                    //                 ->send();
+                    //         }
+                    //     }),
 
-                    Action::make('Confirm')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->label('Confirm from FIRS')
-                        ->action(function (Invoice $record) {
-                            if (empty($record->irn)) {
-                                Notification::make()
-                                    ->title('IRN Missing')
-                                    ->body('Cannot confirm this invoice. No valid IRN found.')
-                                    ->danger()
-                                    ->send();
-                                return;
-                            }
+                    // Action::make('Confirm')
+                    //     ->icon('heroicon-o-check-circle')
+                    //     ->color('success')
+                    //     ->label('Confirm from FIRS')
+                    //     ->action(function (Invoice $record) {
+                    //         if (empty($record->irn)) {
+                    //             Notification::make()
+                    //                 ->title('IRN Missing')
+                    //                 ->body('Cannot confirm this invoice. No valid IRN found.')
+                    //                 ->danger()
+                    //                 ->send();
+                    //             return;
+                    //         }
 
-                            try {
-                                $service = new TaxlyService($record->tenant->taxlyCredential);
-                                $response = $service->confirmByIrn($record->irn);
+                    //         try {
+                    //             $service = new TaxlyService($record->tenant->taxlyCredential);
+                    //             $response = $service->confirmByIrn($record->irn);
 
-                                $record->transmissions()->create([
-                                    'action' => 'confirm',
-                                    'response_payload' => $response,
-                                    'status' => 'success',
-                                ]);
+                    //             $record->transmissions()->create([
+                    //                 'action' => 'confirm',
+                    //                 'response_payload' => $response,
+                    //                 'status' => 'success',
+                    //             ]);
 
-                                Notification::make()
-                                    ->title('Invoice Confirmation Successful')
-                                    ->body("Invoice {$record->invoice_reference} was confirmed with FIRS.")
-                                    ->success()
-                                    ->send();
-                            } catch (Throwable $e) {
-                                Notification::make()
-                                    ->title('Confirmation Failed')
-                                    ->body($e->getMessage())
-                                    ->danger()
-                                    ->send();
-                            }
-                        }),
+                    //             Notification::make()
+                    //                 ->title('Invoice Confirmation Successful')
+                    //                 ->body("Invoice {$record->invoice_reference} was confirmed with FIRS.")
+                    //                 ->success()
+                    //                 ->send();
+                    //         } catch (Throwable $e) {
+                    //             Notification::make()
+                    //                 ->title('Confirmation Failed')
+                    //                 ->body($e->getMessage())
+                    //                 ->danger()
+                    //                 ->send();
+                    //         }
+                    //     }),
 
-                    Action::make('Download')
-                        ->icon('heroicon-o-arrow-down-tray')
-                        ->color('gray')
-                        ->label('Download XML/PDF')
-                        ->action(function (Invoice $record) {
-                            if (empty($record->irn)) {
-                                Notification::make()
-                                    ->title('IRN Missing')
-                                    ->body('Cannot download FIRS file. No valid IRN found.')
-                                    ->danger()
-                                    ->send();
-                                return;
-                            }
+                    // Action::make('Download')
+                    //     ->icon('heroicon-o-arrow-down-tray')
+                    //     ->color('gray')
+                    //     ->label('Download XML/PDF')
+                    //     ->action(function (Invoice $record) {
+                    //         if (empty($record->irn)) {
+                    //             Notification::make()
+                    //                 ->title('IRN Missing')
+                    //                 ->body('Cannot download FIRS file. No valid IRN found.')
+                    //                 ->danger()
+                    //                 ->send();
+                    //             return;
+                    //         }
 
-                            try {
-                                $service = new TaxlyService($record->tenant->taxlyCredential);
-                                $service->downloadByIrn($record->irn);
+                    //         try {
+                    //             $service = new TaxlyService($record->tenant->taxlyCredential);
+                    //             $service->downloadByIrn($record->irn);
 
-                                Notification::make()
-                                    ->title('Invoice Downloaded')
-                                    ->body("FIRS document for {$record->invoice_reference} was downloaded successfully.")
-                                    ->success()
-                                    ->send();
-                            } catch (Throwable $e) {
-                                Notification::make()
-                                    ->title('Download Failed')
-                                    ->body($e->getMessage())
-                                    ->danger()
-                                    ->send();
-                            }
-                        }),
+                    //             Notification::make()
+                    //                 ->title('Invoice Downloaded')
+                    //                 ->body("FIRS document for {$record->invoice_reference} was downloaded successfully.")
+                    //                 ->success()
+                    //                 ->send();
+                    //         } catch (Throwable $e) {
+                    //             Notification::make()
+                    //                 ->title('Download Failed')
+                    //                 ->body($e->getMessage())
+                    //                 ->danger()
+                    //                 ->send();
+                    //         }
+                    //     }),
                 ])
             ])
             ->toolbarActions([
