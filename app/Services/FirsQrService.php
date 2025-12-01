@@ -20,9 +20,11 @@ class FirsQrService
     $timestamp = time();
     $message = $irn . '.' . $timestamp;
 
+    // Create a more compact data structure for QR code
     $data = json_encode([
       'irn' => $message,
-      'certificate' => $certificate,
+      'cert' => substr($certificate, 0, 50), // Use only first 50 chars of certificate for brevity
+      'ts' => $timestamp,
     ], JSON_UNESCAPED_SLASHES);
 
     // Encrypt with public key
@@ -33,7 +35,16 @@ class FirsQrService
       throw new \RuntimeException('Encryption failed: ' . openssl_error_string());
     }
 
-    // Return Base64 string for QR
-    return base64_encode($encrypted);
+    // Return Base64 string for QR (truncated to fit QR code capacity)
+    $base64 = base64_encode($encrypted);
+
+    // QR codes have a maximum capacity, especially at smaller sizes
+    // For a 200px QR code at medium error correction, we can fit about 200-300 characters
+    // Let's truncate to 250 characters to be safe
+    if (strlen($base64) > 250) {
+      $base64 = substr($base64, 0, 250);
+    }
+
+    return $base64;
   }
 }

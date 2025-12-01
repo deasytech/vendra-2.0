@@ -100,21 +100,21 @@ class TaxlyInvoicePayloadBuilder
       'tax_total' => $invoice->tax_totals->map(function ($tax) {
         return [
           'tax_amount' => $tax->tax_amount,
-          'tax_subtotal' => $tax->subtotals->map(fn($sub) => [
+          'tax_subtotal' => $tax->subtotals ? $tax->subtotals->map(fn($sub) => [
             'taxable_amount' => $sub->taxable_amount,
             'tax_amount' => $sub->tax_amount,
             'tax_category' => [
               'id' => $sub->tax_category_id,
               'percent' => $sub->tax_percent,
             ],
-          ]),
+          ]) : [],
         ];
       }),
       'legal_monetary_total' => [
-        'tax_exclusive_amount' => $invoice->legal_monetary_total['tax_exclusive_amount'] ?? 0,
-        'tax_inclusive_amount' => $invoice->legal_monetary_total['tax_inclusive_amount'] ?? 0,
-        'line_extension_amount' => $invoice->legal_monetary_total['line_extension_amount'] ?? 0,
-        'payable_amount' => $invoice->legal_monetary_total['payable_amount'] ?? 0,
+        'tax_exclusive_amount' => $invoice->legal_monetary_total['tax_exclusive_amount'] ?? $invoice->lines->sum('line_total') ?? 0,
+        'tax_inclusive_amount' => $invoice->legal_monetary_total['tax_inclusive_amount'] ?? ($invoice->lines->sum('line_total') + $invoice->tax_totals->sum('tax_amount')) ?? 0,
+        'line_extension_amount' => $invoice->legal_monetary_total['line_extension_amount'] ?? $invoice->lines->sum('line_total') ?? 0,
+        'payable_amount' => $invoice->legal_monetary_total['payable_amount'] ?? ($invoice->lines->sum('line_total') + $invoice->tax_totals->sum('tax_amount')) ?? 0,
       ],
       'invoice_line' => $invoice->lines->map(function ($line) {
         return [
