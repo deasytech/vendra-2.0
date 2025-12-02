@@ -56,7 +56,7 @@ class InvoicesTable
                     //     ->icon('heroicon-o-paper-airplane')
                     //     ->color('primary')
                     //     ->requiresConfirmation()
-                    //     ->label('Transmit to FIRS')
+                    //     ->label('Transmit Invoice')
                     //     ->action(function (Invoice $record) {
                     //         if (empty($record->irn)) {
                     //             Notification::make()

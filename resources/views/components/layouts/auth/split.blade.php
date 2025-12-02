@@ -12,7 +12,7 @@
             class="bg-muted relative hidden h-full flex-col p-10 text-white lg:flex dark:border-e dark:border-neutral-800">
             <div class="absolute inset-0 bg-neutral-900"></div>
             <a href="{{ route('dashboard') }}" class="relative z-20 flex items-center text-lg font-medium" wire:navigate>
-                <x-app-logo class="me-2 fill-current text-white" />
+                <x-app-logo />
             </a>
 
             @php
@@ -34,7 +34,7 @@
                 <a href="{{ route('dashboard') }}" class="z-20 flex flex-col items-center gap-2 font-medium lg:hidden"
                     wire:navigate>
                     <span class="flex h-9 w-9 items-center justify-center rounded-md">
-                        <x-app-logo-icon class="size-9 fill-current text-black dark:text-white" />
+                        <x-dynamic-logo class="size-9 fill-current text-black dark:text-white" />
                     </span>
 
                     <span class="sr-only">{{ config('app.name', 'Laravel') }}</span>

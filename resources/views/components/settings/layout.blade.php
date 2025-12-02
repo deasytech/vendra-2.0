@@ -10,6 +10,7 @@
             <flux:navlist.item :href="route('settings.appearance')" wire:navigate>{{ __('Appearance') }}
             </flux:navlist.item>
             <flux:navlist.item :href="route('settings.logo')" wire:navigate>{{ __('Logo') }}</flux:navlist.item>
+            <flux:navlist.item :href="route('settings.general')" wire:navigate>{{ __('General') }}</flux:navlist.item>
         </flux:navlist>
     </div>
 

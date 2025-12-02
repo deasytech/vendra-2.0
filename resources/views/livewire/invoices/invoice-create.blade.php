@@ -4,7 +4,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">Create Invoice</h1>
-                <p class="text-blue-100">Generate professional invoices with Taxly integration</p>
+                <p class="text-blue-100">Generate professional invoices with FIRS integration</p>
             </div>
             <div class="text-white text-right">
                 <div class="text-sm opacity-75">Invoice Date</div>
@@ -426,14 +426,14 @@
         </div>
     </div>
 
-    <!-- Taxly Integration Section -->
+    <!-- Invoice Submission Section -->
     <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
         <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
             <svg class="w-5 h-5 mr-2 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
-            Taxly Integration
+            Invoice Submission
         </h2>
 
         <div class="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-4">
@@ -532,6 +532,26 @@
             </span>
         </button>
     </div>
+
+    @if ($message)
+        <div
+            class="mb-6 p-4 rounded-xl {{ $errors->has('submission') || $errors->has('validation') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700' }}">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    @if ($errors->has('submission') || $errors->has('validation'))
+                        <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                            clip-rule="evenodd" />
+                    @else
+                        <path fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clip-rule="evenodd" />
+                    @endif
+                </svg>
+                {{ $message }}
+            </div>
+        </div>
+    @endif
 
     @error('submission')
         <div class="mt-4 text-red-600 text-center">{{ $message }}</div>

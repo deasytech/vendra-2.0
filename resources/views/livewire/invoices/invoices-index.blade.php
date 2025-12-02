@@ -140,6 +140,102 @@
         </div>
     </div>
 
+    <!-- Filters Section -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">Filters</h3>
+            <button wire:click="resetFilters"
+                class="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
+                Reset All Filters
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Search -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input type="text" wire:model.live.debounce.300ms="search"
+                    class="w-full px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Invoice reference or IRN...">
+            </div>
+
+            <!-- Customer -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+                <select wire:model.live="customer_id"
+                    class="w-full px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Customers</option>
+                    @foreach ($customers as $customer)
+                        <option value="{{ $customer->id }}">{{ $customer->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Payment Status -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
+                <select wire:model.live="payment_status"
+                    class="w-full px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Statuses</option>
+                    @foreach ($paymentStatuses as $status)
+                        <option value="{{ $status }}">{{ ucfirst($status) }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Transmission Status -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Transmission Status</label>
+                <select wire:model.live="transmit_status"
+                    class="w-full px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Statuses</option>
+                    @foreach ($transmitStatuses as $status)
+                        <option value="{{ $status }}">{{ $status }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Currency -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                <select wire:model.live="currency"
+                    class="w-full px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Currencies</option>
+                    @foreach ($currencies as $currency)
+                        <option value="{{ $currency }}">{{ $currency }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Date From -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+                <input type="date" wire:model.live="date_from"
+                    class="w-full px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <!-- Date To -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+                <input type="date" wire:model.live="date_to"
+                    class="w-full px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <!-- Amount Range -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Amount Range</label>
+                <div class="flex space-x-2">
+                    <input type="number" wire:model.live.debounce.300ms="amount_min"
+                        class="w-1/2 px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Min">
+                    <input type="number" wire:model.live.debounce.300ms="amount_max"
+                        class="w-1/2 px-3 py-2 text-slate-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Max">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Invoices Table -->
     <div class="bg-white rounded-xl shadow-lg overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200">
@@ -149,6 +245,9 @@
                         d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
                 Invoice List
+                @if ($invoices->total() > 0)
+                    <span class="ml-2 text-sm font-normal text-gray-500">({{ $invoices->total() }} results)</span>
+                @endif
             </h2>
         </div>
 
@@ -259,16 +358,16 @@
                                         <flux:menu.item icon="paper-airplane"
                                             wire:click="transmitInvoice({{ $invoice->id }})"
                                             wire:loading.attr="disabled">
-                                            {{ __('Transmit to FIRS') }}
+                                            {{ __('Transmit Invoice') }}
                                         </flux:menu.item>
 
                                         <flux:menu.separator />
 
-                                        <flux:menu.item variant="danger" icon="trash"
-                                            wire:click="deleteInvoice({{ $invoice->id }})"
-                                            onclick="confirm('Are you sure you want to delete this invoice?') || event.stopImmediatePropagation()">
-                                            {{ __('Delete') }}
-                                        </flux:menu.item>
+                                        <flux:modal.trigger name="confirm-invoice-cancellation-{{ $invoice->id }}">
+                                            <flux:menu.item variant="danger" icon="trash">
+                                                {{ __('Cancel') }}
+                                            </flux:menu.item>
+                                        </flux:modal.trigger>
                                     </flux:menu>
                                 </flux:dropdown>
                             </td>
@@ -307,4 +406,57 @@
             </div>
         @endif
     </div>
+
+    <!-- Cancellation Confirmation Modals -->
+    @foreach ($invoices as $invoice)
+        <flux:modal name="confirm-invoice-cancellation-{{ $invoice->id }}" class="max-w-lg">
+            <div class="space-y-6">
+                <div class="text-center">
+                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                        <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-200 mb-2">Cancel Invoice</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        Are you sure you want to cancel invoice <strong>{{ $invoice->invoice_reference }}</strong>?
+                        This action will mark the invoice as cancelled and it will no longer be visible in the active
+                        invoice list.
+                    </p>
+                    @if ($invoice->irn)
+                        <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                            <div class="flex">
+                                <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <div class="ml-3">
+                                    <p class="text-sm text-yellow-700">
+                                        <strong>Note:</strong> This invoice has been transmitted to Taxly (IRN:
+                                        {{ $invoice->irn }}).
+                                        Cancelling it here will not affect the transmission status.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <flux:modal.close>
+                        <flux:button variant="filled" class="!cursor-pointer">
+                            {{ __('No, keep invoice') }}
+                        </flux:button>
+                    </flux:modal.close>
+
+                    <flux:button variant="danger" wire:click="deleteInvoice({{ $invoice->id }})"
+                        class="!cursor-pointer">
+                        {{ __('Yes, cancel invoice') }}
+                    </flux:button>
+                </div>
+            </div>
+        </flux:modal>
+    @endforeach
 </div>

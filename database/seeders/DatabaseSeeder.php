@@ -20,6 +20,9 @@ class DatabaseSeeder extends Seeder
             'base_url' => config('services.taxly.base_url'),
         ]);
 
+        // Call the SettingsSeeder to populate default settings
+        $this->call(SettingsSeeder::class);
+
         // User::factory()->create([
         //     'name' => 'Test User',
         //     'email' => 'test@example.com',

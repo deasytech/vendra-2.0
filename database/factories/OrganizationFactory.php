@@ -17,11 +17,15 @@ class OrganizationFactory extends Factory
       'service_id' => $this->faker->uuid(),
       'registration_number' => strtoupper($this->faker->bothify('RC#######')),
       'legal_name' => $this->faker->company(),
+      'slug' => $this->faker->slug(),
       'email' => $this->faker->companyEmail(),
       'phone' => $this->faker->phoneNumber(),
-      'street_name' => $this->faker->streetAddress(),
-      'city_name' => $this->faker->city(),
-      'postal_zone' => $this->faker->postcode(),
+      'postal_address' => [
+        'street_name' => $this->faker->streetAddress(),
+        'city_name' => $this->faker->city(),
+        'postal_zone' => $this->faker->postcode(),
+        'country' => 'NG',
+      ],
       'description' => $this->faker->sentence(),
     ];
   }
