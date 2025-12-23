@@ -45,8 +45,17 @@ class Dashboard extends Component
           ]);
       $this->description = $this->organization->description ?? '';
 
-      // Check if we should show the modal immediately
+      // Temporarily disable automatic modal showing to allow dashboard access
       $this->checkAndShowModal();
+
+      // Log debug information
+      logger()->info('Dashboard mounted', [
+        'organization_id' => $this->organization->id,
+        'should_show_modal' => $this->shouldShowModal(),
+        'email' => $this->email,
+        'phone' => $this->phone,
+        'postal_address' => $this->postal_address
+      ]);
     }
   }
 

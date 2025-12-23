@@ -1,0 +1,33 @@
+{
+  "node_modules/@alpinejs/focus/dist/module.esm.js": {
+    "file": "assets/module.esm-DKzoKYMU.js",
+    "name": "module.esm",
+    "src": "node_modules/@alpinejs/focus/dist/module.esm.js",
+    "isDynamicEntry": true
+  },
+  "node_modules/alpinejs/dist/module.esm.js": {
+    "file": "assets/module.esm-CTa8DXZh.js",
+    "name": "module.esm",
+    "src": "node_modules/alpinejs/dist/module.esm.js",
+    "isDynamicEntry": true
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-Bo3yTKXE.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-CYBFGejN.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "node_modules/alpinejs/dist/module.esm.js",
+      "node_modules/@alpinejs/focus/dist/module.esm.js",
+      "node_modules/@alpinejs/focus/dist/module.esm.js"
+    ]
+  }
+}

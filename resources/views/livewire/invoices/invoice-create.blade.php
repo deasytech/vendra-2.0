@@ -330,7 +330,7 @@
                 @foreach ($allowance_charges as $idx => $charge)
                     <div class="border border-gray-200 rounded-lg p-3 bg-gray-50"
                         wire:key="charge-{{ $idx }}">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     {{ $charge['charge_indicator'] ? 'Charge' : 'Discount' }} Description
@@ -341,12 +341,20 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Amount
-                                    ({{ $selected_currency_symbol }})
+                                    ({{ ($charge['amount_type'] ?? 'fixed') === 'percent' ? '%' : $selected_currency_symbol }})
                                 </label>
                                 <input type="number" step="0.01"
                                     wire:model.live="allowance_charges.{{ $idx }}.amount"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                     placeholder="0.00" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <select wire:model="allowance_charges.{{ $idx }}.amount_type"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700">
+                                    <option value="fixed">Fixed Amount</option>
+                                    <option value="percent">Percentage (%)</option>
+                                </select>
                             </div>
                             <div>
                                 <button wire:click.prevent="removeAllowanceCharge({{ $idx }})"
@@ -411,6 +419,28 @@
                 <span
                     class="font-semibold text-gray-700">{{ $selected_currency_symbol }}{{ number_format($vat_amount, 2) }}</span>
             </div>
+            @if (count($allowance_charges) > 0)
+                @foreach ($allowance_charges as $c)
+                    @php
+                        $amt = (float) ($c['amount'] ?? 0);
+                        if (($c['amount_type'] ?? 'fixed') === 'percent') {
+                            $amt = round($sub_total * ($amt / 100), 2);
+                        }
+                    @endphp
+                    <div class="flex justify-between items-center mb-2">
+                        <span
+                            class="text-gray-600">{{ $c['reason'] ? $c['reason'] : ($c['charge_indicator'] ? 'Charge' : 'Discount') }}
+                            @if (($c['amount_type'] ?? 'fixed') === 'percent')
+                                ({{ $c['amount'] }}%)
+                            @endif:</span>
+                        <span class="font-semibold text-gray-700">
+                            @if (!$c['charge_indicator'])
+                                -
+                            @endif{{ $selected_currency_symbol }}{{ number_format($amt, 2) }}
+                        </span>
+                    </div>
+                @endforeach
+            @endif
             @if ($withholding_tax_enabled)
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-gray-600">Withholding Tax ({{ $withholding_tax_rate }}%):</span>
@@ -502,9 +532,29 @@
             </label>
         </div>
 
-        @error('validation')
+        {{-- @error('validation')
             <div class="mt-4 text-red-600 text-sm">{{ $message }}</div>
-        @enderror
+        @enderror --}}
+
+        @if ($message)
+            <div
+                class="my-6 p-4 rounded-xl {{ $errors->has('submission') || $errors->has('validation') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700' }}">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        @if ($errors->has('submission') || $errors->has('validation'))
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                clip-rule="evenodd" />
+                        @else
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        @endif
+                    </svg>
+                    {{ $message }}
+                </div>
+            </div>
+        @endif
     </div>
 
     <!-- Action Buttons -->
@@ -532,26 +582,6 @@
             </span>
         </button>
     </div>
-
-    @if ($message)
-        <div
-            class="mb-6 p-4 rounded-xl {{ $errors->has('submission') || $errors->has('validation') ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700' }}">
-            <div class="flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    @if ($errors->has('submission') || $errors->has('validation'))
-                        <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                            clip-rule="evenodd" />
-                    @else
-                        <path fill-rule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                            clip-rule="evenodd" />
-                    @endif
-                </svg>
-                {{ $message }}
-            </div>
-        </div>
-    @endif
 
     @error('submission')
         <div class="mt-4 text-red-600 text-center">{{ $message }}</div>

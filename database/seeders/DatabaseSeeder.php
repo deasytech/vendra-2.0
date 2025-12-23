@@ -21,7 +21,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Call the SettingsSeeder to populate default settings
-        $this->call(SettingsSeeder::class);
+        // $this->call(SettingsSeeder::class);
 
         // User::factory()->create([
         //     'name' => 'Test User',

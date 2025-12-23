@@ -335,7 +335,6 @@ class InvoiceCreate extends Component
     protected function computeTotals()
     {
         $lineTotal = 0;
-        $totalVatAmount = 0;
 
         foreach ($this->invoice_lines as $index => $line) {
             $price = (float) ($line['price']['price_amount'] ?? 0);
@@ -346,18 +345,38 @@ class InvoiceCreate extends Component
             $lineExtension = $price * $qty;
             $lineTotal += $lineExtension;
 
-            // Calculate tax for this line
+            // Update line tax amount (for display per-line, recalculated below on taxable base)
             $taxRate = $this->getTaxRate($selectedTax);
             $lineTaxAmount = round($lineExtension * ($taxRate / 100), 2);
-            $totalVatAmount += $lineTaxAmount;
-
-            // Update line tax amount
             $this->invoice_lines[$index]['tax_amount'] = $lineTaxAmount;
         }
 
         $this->sub_total = round($lineTotal, 2);
-        $this->vat_amount = round($totalVatAmount, 2);
-        $this->total_amount = round($this->sub_total + $this->vat_amount, 2);
+
+        // Calculate allowances/charges based on sub_total
+        $allowanceTotal = 0;
+        foreach ($this->allowance_charges as $charge) {
+            $amt = (float) ($charge['amount'] ?? 0);
+            if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                $amt = round($this->sub_total * ($amt / 100), 2);
+            }
+
+            // charge_indicator = true means it's an added charge, false means discount
+            if (!empty($charge['charge_indicator'])) {
+                $allowanceTotal += $amt;
+            } else {
+                $allowanceTotal -= $amt;
+            }
+        }
+
+        // Taxable amount is subtotal plus allowances/charges
+        $taxable = $this->sub_total + $allowanceTotal;
+        if ($taxable < 0) {
+            $taxable = 0;
+        }
+
+        $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
+        $this->total_amount = round($taxable + $this->vat_amount, 2);
 
         // Apply withholding tax if enabled
         if ($this->withholding_tax_enabled) {
@@ -368,7 +387,7 @@ class InvoiceCreate extends Component
         }
 
         $this->legal_monetary_total = [
-            'tax_exclusive_amount' => $this->sub_total,
+            'tax_exclusive_amount' => $taxable,
             'tax_inclusive_amount' => $this->total_amount,
             'line_extension_amount' => $this->sub_total,
             'payable_amount' => $this->total_amount,
@@ -410,6 +429,7 @@ class InvoiceCreate extends Component
         $this->allowance_charges[] = [
             'charge_indicator' => $isCharge,
             'amount' => 0,
+            'amount_type' => 'fixed', // 'fixed' or 'percent'
             'reason' => ''
         ];
         $this->computeTotals();
@@ -431,9 +451,15 @@ class InvoiceCreate extends Component
     private function getFormattedAllowanceCharges()
     {
         return array_map(function ($charge) {
+            $amount = (float) ($charge['amount'] ?? 0);
+            if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                $amount = round(($this->sub_total * ($amount / 100)), 2);
+            }
+
             return [
                 'charge_indicator' => $charge['charge_indicator'],
-                'amount' => (float) ($charge['amount'] ?? 0)
+                'amount' => (float) $amount,
+                'amount_type' => $charge['amount_type'] ?? 'fixed'
             ];
         }, $this->allowance_charges);
     }
@@ -489,7 +515,6 @@ class InvoiceCreate extends Component
                 'tax_currency_code' => $this->document_currency_code,
                 'payment_status' => 'PENDING',
                 'accounting_supplier_party' => $this->supplier,
-                'accounting_customer_party' => $this->customer,
                 'legal_monetary_total' => $this->legal_monetary_total,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly(),
                 // Add required fields for submission
@@ -516,6 +541,11 @@ class InvoiceCreate extends Component
                     ],
                 ],
             ];
+
+            // Only include customer party if customer is selected
+            if ($this->customer_id || !empty($this->customer['party_name'])) {
+                $payload['accounting_customer_party'] = $this->customer;
+            }
 
             Log::debug('Invoice submission payload', ['payload' => $payload]);
 
@@ -606,7 +636,6 @@ class InvoiceCreate extends Component
                 'tax_currency_code' => $this->document_currency_code, // Required field
                 'payment_status' => 'PENDING', // Required field
                 'accounting_supplier_party' => $this->supplier,
-                'accounting_customer_party' => $this->customer,
                 'legal_monetary_total' => $this->legal_monetary_total,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly(),
                 // Add required fields for validation
@@ -633,6 +662,11 @@ class InvoiceCreate extends Component
                     ],
                 ],
             ];
+
+            // Only include customer party if customer is selected
+            if ($this->customer_id || !empty($this->customer['party_name'])) {
+                $payload['accounting_customer_party'] = $this->customer;
+            }
             Log::debug('Invoice validation payload', ['payload' => $payload]);
             // call Taxly service for validation
             $cred = TaxlyCredential::first();

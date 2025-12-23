@@ -1,146 +1,154 @@
 <div>
     <!-- Organization Completion Modal -->
     @if ($showOrganizationModal)
-        <div
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300">
-            <div
-                class="w-full max-w-lg rounded-lg bg-white dark:bg-neutral-800 p-6 shadow-xl transform transition-all duration-300 scale-100">
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Complete Organization
-                    Details</h2>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    Please complete your organization details to continue.
-                </p>
-                <form wire:submit.prevent="saveOrganizationDetails" class="space-y-4">
-                    <div>
-                        <label for="registration_number"
-                            class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Registration Number <span class="text-slate-500">(optional)</span>
-                        </label>
-                        <input type="text" wire:model="registration_number" id="registration_number"
-                            class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
-                        @error('registration_number')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
-                        <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Phone Number <span class="text-red-500">*</span>
-                        </label>
-                        <input type="tel" wire:model="phone" id="phone"
-                            class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
-                        @error('phone')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div
-                        class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                        <div class="sm:col-span-2">
-                            <label for="postal_address.street_name"
-                                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                Street Name <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" wire:model="postal_address.street_name"
-                                id="postal_address.street_name"
-                                class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
-                                placeholder="123 Main Street">
-                            @error('postal_address.street_name')
-                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="postal_address.city_name"
-                                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                City <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" wire:model="postal_address.city_name" id="postal_address.city_name"
-                                class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
-                                placeholder="Lagos">
-                            @error('postal_address.city_name')
-                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="postal_address.state_name"
-                                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                State <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" wire:model="postal_address.state_name" id="postal_address.state_name"
-                                class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
-                                placeholder="Lagos">
-                            @error('postal_address.state_name')
-                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="postal_address.postal_zone"
-                                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                Postal Code
-                            </label>
-                            <input type="text" wire:model="postal_address.postal_zone"
-                                id="postal_address.postal_zone"
-                                class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
-                                placeholder="100001">
-                            @error('postal_address.postal_zone')
-                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div class="sm:col-span-2">
-                            <label for="postal_address.country"
-                                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                Country Code <span class="text-red-500">*</span>
-                            </label>
-                            <select wire:model="postal_address.country" id="postal_address.country"
-                                class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs">
-                                <option value="">Select Country</option>
-                                <option value="NG">Nigeria (NG)</option>
-                                <option value="GH">Ghana (GH)</option>
-                                <option value="US">United States (US)</option>
-                                <option value="GB">United Kingdom (GB)</option>
-                                <option value="CA">Canada (CA)</option>
-                                <option value="AU">Australia (AU)</option>
-                                <option value="ZA">South Africa (ZA)</option>
-                                <option value="KE">Kenya (KE)</option>
-                                <option value="TZ">Tanzania (TZ)</option>
-                                <option value="UG">Uganda (UG)</option>
-                            </select>
-                            @error('postal_address.country')
-                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-                    <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Description <span class="text-slate-500">(optional, min. 50 characters if provided)</span>
-                        </label>
-                        <textarea wire:model="description" id="description" rows="2"
-                            class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"></textarea>
-                        @error('description')
-                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="flex justify-end space-x-2">
-                        <button type="submit" wire:loading.attr="disabled"
-                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
-                            <span wire:loading.remove>Update</span>
-                            <span wire:loading.flex class="items-center">
-                                <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10"
-                                        stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor"
-                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                                </svg>
-                                Saving...
-                            </span>
-                        </button>
-                    </div>
-                </form>
+        <div role="dialog" aria-modal="true" class="fixed inset-0 z-50">
+            <!-- Backdrop (click to close) -->
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300" aria-hidden="true">
             </div>
-        </div>
+
+            <!-- Centered Modal Panel -->
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div
+                    class="relative w-full max-w-lg rounded-lg bg-white dark:bg-neutral-800 p-6 shadow-xl transform transition-all duration-300 z-50">
+                    <!-- (rest of your modal content — keep it unchanged) -->
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Complete Organization Details
+                    </h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Please complete your organization details
+                        to continue.</p>
+                    <form wire:submit.prevent="saveOrganizationDetails" class="space-y-4">
+                        <div>
+                            <label for="registration_number"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Registration Number <span class="text-slate-500">(optional)</span>
+                            </label>
+                            <input type="text" wire:model="registration_number" id="registration_number"
+                                class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            @error('registration_number')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Phone Number <span class="text-red-500">*</span>
+                            </label>
+                            <input type="tel" wire:model="phone" id="phone"
+                                class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            @error('phone')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div
+                            class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                            <div class="sm:col-span-2">
+                                <label for="postal_address.street_name"
+                                    class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                    Street Name <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" wire:model="postal_address.street_name"
+                                    id="postal_address.street_name"
+                                    class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
+                                    placeholder="123 Main Street">
+                                @error('postal_address.street_name')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label for="postal_address.city_name"
+                                    class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                    City <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" wire:model="postal_address.city_name"
+                                    id="postal_address.city_name"
+                                    class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
+                                    placeholder="Lagos">
+                                @error('postal_address.city_name')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label for="postal_address.state_name"
+                                    class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                    State <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" wire:model="postal_address.state_name"
+                                    id="postal_address.state_name"
+                                    class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
+                                    placeholder="Lagos">
+                                @error('postal_address.state_name')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div>
+                                <label for="postal_address.postal_zone"
+                                    class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                    Postal Code
+                                </label>
+                                <input type="text" wire:model="postal_address.postal_zone"
+                                    id="postal_address.postal_zone"
+                                    class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs"
+                                    placeholder="100001">
+                                @error('postal_address.postal_zone')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <label for="postal_address.country"
+                                    class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                    Country Code <span class="text-red-500">*</span>
+                                </label>
+                                <select wire:model="postal_address.country" id="postal_address.country"
+                                    class="block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs">
+                                    <option value="">Select Country</option>
+                                    <option value="NG">Nigeria (NG)</option>
+                                    <option value="GH">Ghana (GH)</option>
+                                    <option value="US">United States (US)</option>
+                                    <option value="GB">United Kingdom (GB)</option>
+                                    <option value="CA">Canada (CA)</option>
+                                    <option value="AU">Australia (AU)</option>
+                                    <option value="ZA">South Africa (ZA)</option>
+                                    <option value="KE">Kenya (KE)</option>
+                                    <option value="TZ">Tanzania (TZ)</option>
+                                    <option value="UG">Uganda (UG)</option>
+                                </select>
+                                @error('postal_address.country')
+                                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Description <span class="text-slate-500">(optional, min. 50 characters if
+                                    provided)</span>
+                            </label>
+                            <textarea wire:model="description" id="description" rows="2"
+                                class="mt-1 block w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"></textarea>
+                            @error('description')
+                                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="flex justify-end space-x-2">
+                            <button type="submit" wire:loading.attr="disabled"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
+                                <span wire:loading.remove>Update</span>
+                                <span wire:loading.flex class="items-center">
+                                    <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10"
+                                            stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                    </svg>
+                                    Saving...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
     @endif
 
     <!-- Success Message -->

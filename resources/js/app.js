@@ -1,6 +1,3 @@
-import Alpine from "alpinejs";
-import focus from "@alpinejs/focus";
-
 // Add notification handling for Livewire
 document.addEventListener("livewire:init", () => {
     Livewire.on("success", (message) => {
@@ -54,7 +51,21 @@ function showNotification(message, type = "info") {
     }, 5000);
 }
 
-// Initialize Alpine.js
-Alpine.plugin(focus);
-window.Alpine = Alpine;
-Alpine.start();
+// Check if Alpine.js is already loaded (by Flux or other sources)
+if (typeof window.Alpine === "undefined") {
+    // Alpine is not loaded, so we can safely import and initialize it
+    import("alpinejs").then(({ default: Alpine }) => {
+        import("@alpinejs/focus").then(({ default: focus }) => {
+            Alpine.plugin(focus);
+            window.Alpine = Alpine;
+            Alpine.start();
+        });
+    });
+} else {
+    // Alpine is already loaded, just add the focus plugin if needed
+    if (window.Alpine && window.Alpine.plugin) {
+        import("@alpinejs/focus").then(({ default: focus }) => {
+            window.Alpine.plugin(focus);
+        });
+    }
+}
