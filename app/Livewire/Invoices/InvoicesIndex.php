@@ -206,8 +206,14 @@ class InvoicesIndex extends Component
             }
 
             // ✅ Prevent duplicate transmission requests
-            if ($invoice->transmit !== 'PENDING') {
-                $this->dispatch('error', 'This invoice has already been transmitted.');
+            if ($invoice->transmit === 'TRANSMITTING') {
+                $this->dispatch('error', 'This invoice is currently being transmitted.');
+                return;
+            }
+
+            // ✅ Allow retry for FAILED or PENDING status
+            if ($invoice->transmit === 'TRANSMITTED') {
+                $this->dispatch('error', 'This invoice has already been successfully transmitted.');
                 return;
             }
 
@@ -230,6 +236,7 @@ class InvoicesIndex extends Component
                     'metadata' => array_merge($invoice->metadata ?? [], [
                         'transmission_initiated_at' => now()->toDateTimeString(),
                         'transmission_message' => $response['message'] ?? 'Transmission initiated',
+                        'retry_count' => ($invoice->metadata['retry_count'] ?? 0) + 1,
                     ]),
                 ]);
             }
@@ -271,6 +278,99 @@ class InvoicesIndex extends Component
             }
 
             $this->dispatch('error', message: 'Failed to initiate invoice transmission: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Retry failed invoice transmission
+     */
+    public function retryTransmission($invoiceId)
+    {
+        try {
+            $invoice = Invoice::with(['customer', 'organization'])->findOrFail($invoiceId);
+
+            Log::info('Retrying invoice transmission', [
+                'invoice_id' => $invoice->id,
+                'irn' => $invoice->irn,
+                'current_status' => $invoice->transmit,
+                'retry_count' => $invoice->metadata['retry_count'] ?? 0,
+            ]);
+
+            // ✅ Ensure invoice has an IRN
+            if (empty($invoice->irn)) {
+                $this->dispatch('error', 'Invoice cannot be transmitted because it has no IRN.');
+                return;
+            }
+
+            // ✅ Only allow retry for FAILED status
+            if ($invoice->transmit !== 'FAILED') {
+                $this->dispatch('error', 'Only failed transmissions can be retried.');
+                return;
+            }
+
+            // ✅ Initialize TaxlyService
+            $cred = TaxlyCredential::first();
+            $taxly = new TaxlyService($cred);
+
+            $webhookUrl = route('taxly.webhook.invoice');
+            Log::info('Using webhook URL for retry transmission', [
+                'webhook_url' => $webhookUrl,
+            ]);
+
+            // ✅ Call transmitByIrn for retry
+            $response = $taxly->transmitByIrn($invoice->irn, $webhookUrl);
+
+            // ✅ Change invoice transmit status to TRANSMITTING
+            if ($response['code'] === 200 || ($response['data']['ok'] ?? true)) {
+                $invoice->update([
+                    'transmit' => 'TRANSMITTING',
+                    'metadata' => array_merge($invoice->metadata ?? [], [
+                        'transmission_initiated_at' => now()->toDateTimeString(),
+                        'transmission_message' => $response['message'] ?? 'Retry transmission initiated',
+                        'retry_count' => ($invoice->metadata['retry_count'] ?? 0) + 1,
+                        'last_retry_at' => now()->toDateTimeString(),
+                    ]),
+                ]);
+            }
+
+            // ✅ Log retry transmission initiation
+            $invoice->transmissions()->create([
+                'action' => 'retry_transmit',
+                'request_payload' => ['irn' => $invoice->irn, 'retry' => true],
+                'response_payload' => $response,
+                'status' => 'initiated',
+            ]);
+
+            Log::info('Invoice retry transmission initiated', [
+                'invoice_id' => $invoice->id,
+                'response' => $response,
+                'retry_count' => $invoice->metadata['retry_count'] ?? 1,
+            ]);
+
+            $this->dispatch('success', $response['message'] ?? 'Invoice retry transmission started.');
+        } catch (\Throwable $e) {
+            Log::error('Invoice retry transmission failed', [
+                'invoice_id' => $invoiceId ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            if (isset($invoice)) {
+                try {
+                    $invoice->transmissions()->create([
+                        'action' => 'retry_transmit',
+                        'request_payload' => ['irn' => $invoice->irn ?? null, 'retry' => true],
+                        'response_payload' => ['error' => $e->getMessage()],
+                        'status' => 'failure',
+                    ]);
+                } catch (\Throwable $inner) {
+                    Log::error('Failed to record retry transmission error', [
+                        'invoice_id' => $invoice->id ?? null,
+                        'error' => $inner->getMessage(),
+                    ]);
+                }
+            }
+
+            $this->dispatch('error', message: 'Failed to retry invoice transmission: ' . $e->getMessage());
         }
     }
 

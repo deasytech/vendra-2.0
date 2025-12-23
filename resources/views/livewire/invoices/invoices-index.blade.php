@@ -355,11 +355,19 @@
                                             {{ __('Edit Invoice') }}
                                         </flux:menu.item>
 
-                                        <flux:menu.item icon="paper-airplane"
-                                            wire:click="transmitInvoice({{ $invoice->id }})"
-                                            wire:loading.attr="disabled">
-                                            {{ __('Transmit Invoice') }}
-                                        </flux:menu.item>
+                                        @if ($invoice->transmit === 'FAILED')
+                                            <flux:menu.item icon="arrow-path"
+                                                wire:click="retryTransmission({{ $invoice->id }})"
+                                                wire:loading.attr="disabled">
+                                                {{ __('Retry Transmission') }}
+                                            </flux:menu.item>
+                                        @else
+                                            <flux:menu.item icon="paper-airplane"
+                                                wire:click="transmitInvoice({{ $invoice->id }})"
+                                                wire:loading.attr="disabled">
+                                                {{ __('Transmit Invoice') }}
+                                            </flux:menu.item>
+                                        @endif
 
                                         <flux:menu.separator />
 
