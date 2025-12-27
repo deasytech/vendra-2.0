@@ -22,6 +22,10 @@ Route::get('/', Dashboard::class)
     ->middleware(['auth'])
     ->name('dashboard');
 
+Route::get('/documentation', function () {
+    return view('documentation');
+})->middleware(['auth'])->name('documentation');
+
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
