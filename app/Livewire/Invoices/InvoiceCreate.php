@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Customer;
 use App\Models\Organization;
+use App\Models\Setting;
 use App\Services\TaxlyService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -44,7 +45,7 @@ class InvoiceCreate extends Component
     public $validating = false;
     public $submit_to_firs = false;
 
-    public $withholding_tax_rate = 5.0;
+    public $withholding_tax_rate;
     public $taxes = [];
     public $withholding_tax_enabled = false;
     public $selected_currency = 'NGN';
@@ -96,6 +97,10 @@ class InvoiceCreate extends Component
         $this->invoice_reference = 'INV' . strtoupper(uniqid());
         $this->issue_date = now()->format('Y-m-d');
         $this->due_date = now()->addDays(30)->format('Y-m-d');
+
+        // Load withholding tax rate from settings
+        $this->withholding_tax_rate = Setting::getValue('withholding_tax_rate', 5.0);
+
         $this->loadInvoiceTypes();
         $this->loadCurrencies();
         $this->loadTaxes();
