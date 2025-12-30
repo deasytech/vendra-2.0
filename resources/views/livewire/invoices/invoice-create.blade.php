@@ -432,7 +432,8 @@
                             class="text-gray-600">{{ $c['reason'] ? $c['reason'] : ($c['charge_indicator'] ? 'Charge' : 'Discount') }}
                             @if (($c['amount_type'] ?? 'fixed') === 'percent')
                                 ({{ $c['amount'] }}%)
-                            @endif:</span>
+                            @endif:
+                        </span>
                         <span class="font-semibold text-gray-700">
                             @if (!$c['charge_indicator'])
                                 -

@@ -111,7 +111,9 @@ class InvoiceCreate extends Component
                     'price_unit' => 'NGN per 1'
                 ],
                 'item' => ['name' => '', 'description' => ''],
-                'order' => 0
+                'order' => 0,
+                'selected_tax' => 'STANDARD_VAT',
+                'tax_amount' => 0
             ]
         ];
     }
@@ -335,6 +337,7 @@ class InvoiceCreate extends Component
     protected function computeTotals()
     {
         $lineTotal = 0;
+        $totalVatAmount = 0;
 
         foreach ($this->invoice_lines as $index => $line) {
             $price = (float) ($line['price']['price_amount'] ?? 0);
@@ -345,10 +348,11 @@ class InvoiceCreate extends Component
             $lineExtension = $price * $qty;
             $lineTotal += $lineExtension;
 
-            // Update line tax amount (for display per-line, recalculated below on taxable base)
+            // Calculate VAT for this line based on its selected tax rate
             $taxRate = $this->getTaxRate($selectedTax);
             $lineTaxAmount = round($lineExtension * ($taxRate / 100), 2);
             $this->invoice_lines[$index]['tax_amount'] = $lineTaxAmount;
+            $totalVatAmount += $lineTaxAmount;
         }
 
         $this->sub_total = round($lineTotal, 2);
@@ -375,7 +379,8 @@ class InvoiceCreate extends Component
             $taxable = 0;
         }
 
-        $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
+        // Use the calculated total VAT amount from individual lines
+        $this->vat_amount = round($totalVatAmount, 2);
         $this->total_amount = round($taxable + $this->vat_amount, 2);
 
         // Apply withholding tax if enabled
