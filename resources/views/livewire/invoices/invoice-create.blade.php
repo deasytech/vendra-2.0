@@ -241,10 +241,10 @@
 
                         <div class="md:col-span-1">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                            <input type="number"
+                            <input type="number" step="0.01"
                                 wire:model.live.debounce.500ms="invoice_lines.{{ $idx }}.invoiced_quantity"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
-                                min="1" />
+                                min="0.01" />
                             @error('invoice_lines.' . $idx . '.invoiced_quantity')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
                             @enderror
@@ -560,6 +560,29 @@
 
     <!-- Action Buttons -->
     <div class="flex flex-wrap gap-4 justify-end">
+        <button wire:click.prevent="saveAsDraft" wire:loading.attr="disabled" wire:target="saveAsDraft"
+            class="px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all flex items-center font-semibold shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+            <span wire:loading.remove wire:target="saveAsDraft">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2" />
+                </svg>
+                Save as Draft
+            </span>
+
+            <span wire:loading wire:target="saveAsDraft">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+                    fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                        stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+                Saving...
+            </span>
+        </button>
+
         <button wire:click.prevent="submitInvoice" wire:loading.attr="disabled" wire:target="submitInvoice"
             class="px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all flex items-center font-semibold text-lg shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
             <span wire:loading.remove wire:target="submitInvoice">

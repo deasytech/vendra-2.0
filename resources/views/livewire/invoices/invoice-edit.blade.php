@@ -241,10 +241,10 @@
 
                         <div class="md:col-span-1">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                            <input type="number"
+                            <input type="number" step="0.01"
                                 wire:model.live.debounce.500ms="invoice_lines.{{ $idx }}.invoiced_quantity"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
-                                min="1" />
+                                min="0.01" />
                             @error('invoice_lines.' . $idx . '.invoiced_quantity')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
                             @enderror
@@ -432,7 +432,8 @@
                             class="text-gray-600">{{ $c['reason'] ? $c['reason'] : ($c['charge_indicator'] ? 'Charge' : 'Discount') }}
                             @if (($c['amount_type'] ?? 'fixed') === 'percent')
                                 ({{ $c['amount'] }}%)
-                            @endif:</span>
+                            @endif:
+                        </span>
                         <span class="font-semibold text-gray-700">
                             @if (!$c['charge_indicator'])
                                 -

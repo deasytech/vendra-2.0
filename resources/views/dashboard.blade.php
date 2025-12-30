@@ -53,14 +53,14 @@
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
                             {{ App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)->count() }}
                         </p>
-                        <p class="mt-1 text-xs text-green-600 dark:text-green-400">
+                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
                             <span class="inline-flex items-center">
                                 <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
-                                        d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
                                         clip-rule="evenodd" />
                                 </svg>
-                                +12% this month
+                                Calculating...
                             </span>
                         </p>
                     </div>
@@ -111,16 +111,16 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Customers</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            {{ App\Models\Customer::where('tenant_id', auth()->user()->tenant_id)->count() + App\Models\Organization::where('tenant_id', auth()->user()->tenant_id)->count() }}
+                            {{ App\Models\Customer::where('tenant_id', auth()->user()->tenant_id)->count() }}
                         </p>
-                        <p class="mt-1 text-xs text-green-600 dark:text-green-400">
+                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
                             <span class="inline-flex items-center">
                                 <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
-                                        d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
                                         clip-rule="evenodd" />
                                 </svg>
-                                Growing steadily
+                                Calculating...
                             </span>
                         </p>
                     </div>
@@ -143,14 +143,14 @@
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
                             ₦{{ number_format(App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)->whereMonth('created_at', now()->month)->sum('legal_monetary_total->payable_amount') ?? 0) }}
                         </p>
-                        <p class="mt-1 text-xs text-purple-600 dark:text-purple-400">
+                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
                             <span class="inline-flex items-center">
                                 <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
-                                        d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
                                         clip-rule="evenodd" />
                                 </svg>
-                                +8% from last month
+                                Calculating...
                             </span>
                         </p>
                     </div>

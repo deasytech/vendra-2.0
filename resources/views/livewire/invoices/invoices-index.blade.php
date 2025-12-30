@@ -355,7 +355,13 @@
                                             {{ __('Edit Invoice') }}
                                         </flux:menu.item>
 
-                                        @if ($invoice->transmit === 'FAILED')
+                                        @if ($invoice->transmit === 'DRAFT')
+                                            <flux:menu.item icon="paper-airplane"
+                                                wire:click="submitToFIRS({{ $invoice->id }})"
+                                                wire:loading.attr="disabled">
+                                                {{ __('Submit to FIRS') }}
+                                            </flux:menu.item>
+                                        @elseif ($invoice->transmit === 'FAILED')
                                             <flux:menu.item icon="arrow-path"
                                                 wire:click="retryTransmission({{ $invoice->id }})"
                                                 wire:loading.attr="disabled">

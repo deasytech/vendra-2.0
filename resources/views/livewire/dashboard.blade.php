@@ -202,16 +202,44 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Invoices</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            {{ App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)->count() }}
+                            {{ $totalInvoices }}
                         </p>
-                        <p class="mt-1 text-xs text-green-600 dark:text-green-400">
+                        <p
+                            class="mt-1 text-xs {{ $totalInvoicesTrend === 'up' ? 'text-green-600 dark:text-green-400' : ($totalInvoicesTrend === 'down' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400') }}">
                             <span class="inline-flex items-center">
-                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd"
-                                        d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                +12% this month
+                                @if ($totalInvoicesTrend === 'up')
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    +{{ $totalInvoicesChange }}% this month
+                                @elseif($totalInvoicesTrend === 'down')
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    {{ $totalInvoicesChange }}% this month
+                                @elseif($totalInvoicesTrend === 'new')
+                                    <span class="inline-flex items-center">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                        New this month
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                        No change
+                                    </span>
+                                @endif
                             </span>
                         </p>
                     </div>
@@ -232,7 +260,7 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Invoices</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            {{ App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)->where('payment_status', 'PENDING')->count() }}
+                            {{ $pendingInvoices }}
                         </p>
                         <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
                             <span class="inline-flex items-center">
@@ -262,16 +290,44 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Customers</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            {{ App\Models\Customer::where('tenant_id', auth()->user()->tenant_id)->count() }}
+                            {{ $totalCustomers }}
                         </p>
-                        <p class="mt-1 text-xs text-green-600 dark:text-green-400">
+                        <p
+                            class="mt-1 text-xs {{ $totalCustomersTrend === 'up' ? 'text-green-600 dark:text-green-400' : ($totalCustomersTrend === 'down' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400') }}">
                             <span class="inline-flex items-center">
-                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd"
-                                        d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                Growing steadily
+                                @if ($totalCustomersTrend === 'up')
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    +{{ $totalCustomersChange }}% this month
+                                @elseif($totalCustomersTrend === 'down')
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    {{ $totalCustomersChange }}% this month
+                                @elseif($totalCustomersTrend === 'new')
+                                    <span class="inline-flex items-center">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                        New this month
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                        No change
+                                    </span>
+                                @endif
                             </span>
                         </p>
                     </div>
@@ -292,16 +348,44 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Revenue This Month</p>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            ₦{{ number_format(App\Models\Invoice::where('tenant_id', auth()->user()->tenant_id)->whereMonth('created_at', now()->month)->sum('legal_monetary_total->payable_amount') ?? 0) }}
+                            ₦{{ number_format($revenueThisMonth) }}
                         </p>
-                        <p class="mt-1 text-xs text-purple-600 dark:text-purple-400">
+                        <p
+                            class="mt-1 text-xs {{ $revenueTrend === 'up' ? 'text-green-600 dark:text-green-400' : ($revenueTrend === 'down' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400') }}">
                             <span class="inline-flex items-center">
-                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd"
-                                        d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                +8% from last month
+                                @if ($revenueTrend === 'up')
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    +{{ $revenueChange }}% from last month
+                                @elseif($revenueTrend === 'down')
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    {{ $revenueChange }}% from last month
+                                @elseif($revenueTrend === 'new')
+                                    <span class="inline-flex items-center">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                        New this month
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                        No change
+                                    </span>
+                                @endif
                             </span>
                         </p>
                     </div>

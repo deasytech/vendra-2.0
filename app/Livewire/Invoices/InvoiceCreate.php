@@ -73,7 +73,7 @@ class InvoiceCreate extends Component
         'invoice_lines' => 'required|array|min:1',
         'invoice_lines.*.item.name' => 'required|string',
         'invoice_lines.*.item.description' => 'required|string',
-        'invoice_lines.*.invoiced_quantity' => 'required|integer|min:1',
+        'invoice_lines.*.invoiced_quantity' => 'required|numeric|min:0.01',
         'invoice_lines.*.price.price_amount' => 'required|numeric|min:0',
     ];
 
@@ -388,12 +388,13 @@ class InvoiceCreate extends Component
         $this->vat_amount = round($totalVatAmount, 2);
         $this->total_amount = round($taxable + $this->vat_amount, 2);
 
-        // Apply withholding tax if enabled
+        // Apply withholding tax if enabled (on taxable amount only, excluding VAT)
         if ($this->withholding_tax_enabled) {
-            $this->withholding_tax_amount = round($this->total_amount * ($this->withholding_tax_rate / 100), 2);
-            $this->total_amount = round($this->total_amount - $this->withholding_tax_amount, 2);
+            $this->withholding_tax_amount = round($taxable * ($this->withholding_tax_rate / 100), 2);
+            $this->total_amount = round($taxable + $this->vat_amount - $this->withholding_tax_amount, 2);
         } else {
             $this->withholding_tax_amount = 0;
+            $this->total_amount = round($taxable + $this->vat_amount, 2);
         }
 
         $this->legal_monetary_total = [
@@ -474,6 +475,86 @@ class InvoiceCreate extends Component
         }, $this->allowance_charges);
     }
 
+    public function saveAsDraft()
+    {
+        $this->validate();
+
+        $this->submitting = true;
+        $this->computeTotals();
+
+        $this->ensureEntityIdentifiers();
+
+        DB::beginTransaction();
+
+        try {
+            // Generate IRN for the invoice
+            $irn = $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd');
+
+            // create internal invoice record as DRAFT
+            $invoice = Invoice::create([
+                'tenant_id' => $this->tenant_id,
+                'organization_id' => $this->organization_id,
+                'customer_id' => $this->customer_id,
+                'invoice_reference' => $this->invoice_reference,
+                'issue_date' => $this->issue_date,
+                'due_date' => $this->due_date,
+                'invoice_type_code' => $this->invoice_type_code,
+                'document_currency_code' => $this->document_currency_code,
+                'payment_status' => 'PENDING',
+                'accounting_supplier_party' => $this->supplier,
+                'accounting_customer_party' => $this->customer,
+                'legal_monetary_total' => $this->legal_monetary_total,
+                'irn' => $irn, // Store IRN for future transmission
+                'transmit' => 'DRAFT', // Set status to DRAFT
+            ]);
+
+            foreach ($this->invoice_lines as $i => $line) {
+                $line['order'] = $i;
+                InvoiceLine::create(array_merge($line, ['invoice_id' => $invoice->id]));
+            }
+
+            // Log draft creation (no Taxly submission)
+            $invoice->transmissions()->create([
+                'action' => 'draft_created',
+                'request_payload' => ['message' => 'Invoice saved as draft'],
+                'response_payload' => ['status' => 'draft'],
+                'status' => 'success'
+            ]);
+
+            DB::commit();
+
+            $this->message = 'Invoice saved as draft successfully.';
+
+            // Redirect to invoice index
+            session()->flash('success', $this->message);
+            return redirect()->route('invoices.index');
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            $readableError = $this->extractReadableFirsError($e);
+
+            if (!empty($invoice ?? null)) {
+                try {
+                    $invoice->transmissions()->create([
+                        'action' => 'draft_created',
+                        'request_payload' => ['message' => 'Failed to save draft'],
+                        'response_payload' => ['error' => $readableError],
+                        'status' => 'failure'
+                    ]);
+                } catch (Throwable $inner) {
+                    Log::error('Failed to store draft creation failure: ' . $inner->getMessage());
+                }
+            }
+
+            $this->addError('submission', $readableError);
+            $this->message = $readableError;
+
+            Log::error('Invoice draft creation error', ['error' => $readableError]);
+        } finally {
+            $this->submitting = false;
+        }
+    }
+
     public function submitInvoice()
     {
         $this->validate();
@@ -504,6 +585,7 @@ class InvoiceCreate extends Component
                 'accounting_customer_party' => $this->customer,
                 'legal_monetary_total' => $this->legal_monetary_total,
                 'irn' => $irn, // Store IRN for future transmission
+                'transmit' => 'PENDING', // Set status to PENDING for immediate submission
             ]);
 
             foreach ($this->invoice_lines as $i => $line) {

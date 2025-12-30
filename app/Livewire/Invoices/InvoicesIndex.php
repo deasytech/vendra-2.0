@@ -375,6 +375,164 @@ class InvoicesIndex extends Component
     }
 
     /**
+     * Submit draft invoice to FIRS
+     */
+    public function submitToFIRS($invoiceId)
+    {
+        try {
+            $invoice = Invoice::with(['customer', 'organization', 'lines'])->findOrFail($invoiceId);
+
+            // Only allow submission for DRAFT invoices
+            if ($invoice->transmit !== 'DRAFT') {
+                $this->dispatch('error', message: 'Only draft invoices can be submitted to FIRS.');
+                return;
+            }
+
+            Log::info('Submitting draft invoice to FIRS', [
+                'invoice_id' => $invoice->id,
+                'invoice_reference' => $invoice->invoice_reference,
+            ]);
+
+            // Build payload for Taxly submission
+            $payload = [
+                'channel' => 'api',
+                'business_id' => $invoice->organization->business_id ?? null,
+                'invoice_reference' => $invoice->invoice_reference,
+                'irn' => $invoice->irn,
+                'issue_date' => $invoice->issue_date->format('Y-m-d'),
+                'due_date' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : null,
+                'issue_time' => now()->format('H:i:s'),
+                'invoice_type_code' => $invoice->invoice_type_code,
+                'document_currency_code' => $invoice->document_currency_code,
+                'tax_currency_code' => $invoice->document_currency_code,
+                'payment_status' => $invoice->payment_status,
+                'accounting_supplier_party' => $invoice->accounting_supplier_party,
+                'accounting_customer_party' => $invoice->accounting_customer_party,
+                'legal_monetary_total' => $invoice->legal_monetary_total,
+                'invoice_line' => $this->formatInvoiceLinesForTaxly($invoice->lines),
+                'payment_means' => [
+                    [
+                        'payment_means_code' => '10',
+                        'payment_due_date' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : now()->addDays(30)->format('Y-m-d'),
+                    ],
+                ],
+                'tax_total' => $this->buildTaxTotal($invoice),
+            ];
+
+            // Call Taxly service to submit to FIRS
+            $cred = TaxlyCredential::first();
+            $taxly = new TaxlyService($cred);
+
+            // Submit invoice to FIRS
+            $response = $taxly->submitInvoice($payload);
+
+            Log::info('Draft invoice submitted to FIRS', [
+                'invoice_id' => $invoice->id,
+                'response' => $response,
+            ]);
+
+            // Update invoice status to PENDING
+            $invoice->update([
+                'transmit' => 'PENDING',
+            ]);
+
+            // Record successful submission
+            $invoice->transmissions()->create([
+                'action' => 'submit',
+                'request_payload' => $payload,
+                'response_payload' => $response,
+                'status' => 'PENDING'
+            ]);
+
+            $this->dispatch('success', message: 'Invoice submitted to FIRS successfully. Ready for transmission.');
+        } catch (\Throwable $e) {
+            Log::error('Draft invoice submission to FIRS failed', [
+                'invoice_id' => $invoiceId,
+                'error' => $e->getMessage(),
+            ]);
+
+            if (isset($invoice)) {
+                try {
+                    $invoice->transmissions()->create([
+                        'action' => 'submit',
+                        'request_payload' => $payload ?? null,
+                        'response_payload' => ['error' => $e->getMessage()],
+                        'status' => 'failure'
+                    ]);
+                } catch (\Throwable $inner) {
+                    Log::error('Failed to record submission error', [
+                        'invoice_id' => $invoice->id ?? null,
+                        'error' => $inner->getMessage(),
+                    ]);
+                }
+            }
+
+            $this->dispatch('error', message: 'Failed to submit invoice to FIRS: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Format invoice lines for Taxly API
+     */
+    private function formatInvoiceLinesForTaxly($lines)
+    {
+        return $lines->map(function ($line, $index) {
+            return [
+                'hsn_code' => $line->hsn_code ?? 'GENERAL',
+                'product_category' => $line->product_category ?? 'General Items',
+                'invoiced_quantity' => (float) ($line->invoiced_quantity ?? 0),
+                'line_extension_amount' => (float) ($line->line_extension_amount ?? 0),
+                'item' => $line->item ?? ['name' => 'Item', 'description' => 'Item description'],
+                'price' => $line->price ?? [
+                    'price_amount' => 0,
+                    'base_quantity' => 1,
+                    'price_unit' => 'NGN per 1',
+                ],
+                'order' => $index,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Build tax total from invoice data
+     */
+    private function buildTaxTotal($invoice)
+    {
+        $taxTotals = [];
+
+        // Get tax totals from invoice
+        if ($invoice->taxTotals && $invoice->taxTotals->count() > 0) {
+            foreach ($invoice->taxTotals as $taxTotal) {
+                $taxTotals[] = [
+                    'tax_amount' => (float) ($taxTotal->tax_amount ?? 0),
+                    'tax_subtotal' => $taxTotal->tax_subtotal ?? [],
+                ];
+            }
+        } else {
+            // Fallback to basic tax calculation
+            $payableAmount = $invoice->legal_monetary_total['payable_amount'] ?? 0;
+            $taxableAmount = $invoice->legal_monetary_total['tax_exclusive_amount'] ?? $payableAmount;
+            $taxAmount = $payableAmount - $taxableAmount;
+
+            $taxTotals[] = [
+                'tax_amount' => (float) $taxAmount,
+                'tax_subtotal' => [
+                    [
+                        'taxable_amount' => (float) $taxableAmount,
+                        'tax_amount' => (float) $taxAmount,
+                        'tax_category' => [
+                            'id' => 'LOCAL_SALES_TAX',
+                            'percent' => 7.5,
+                        ],
+                    ],
+                ],
+            ];
+        }
+
+        return $taxTotals;
+    }
+
+    /**
      * Delete invoice (Cancel)
      */
     public function deleteInvoice($invoiceId)

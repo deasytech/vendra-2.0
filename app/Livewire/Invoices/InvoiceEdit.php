@@ -77,7 +77,7 @@ class InvoiceEdit extends Component
         'invoice_lines' => 'required|array|min:1',
         'invoice_lines.*.item.name' => 'required|string',
         'invoice_lines.*.item.description' => 'required|string',
-        'invoice_lines.*.invoiced_quantity' => 'required|integer|min:1',
+        'invoice_lines.*.invoiced_quantity' => 'required|numeric|min:0.01',
         'invoice_lines.*.price.price_amount' => 'required|numeric|min:0',
     ];
 
@@ -117,8 +117,8 @@ class InvoiceEdit extends Component
     private function loadInvoiceData()
     {
         $this->invoice_reference = $this->invoice->invoice_reference;
-        $this->issue_date = $this->invoice->issue_date;
-        $this->due_date = $this->invoice->due_date;
+        $this->issue_date = $this->invoice->issue_date ? $this->invoice->issue_date->format('Y-m-d') : null;
+        $this->due_date = $this->invoice->due_date ? $this->invoice->due_date->format('Y-m-d') : null;
         $this->invoice_type_code = $this->invoice->invoice_type_code ?? '396';
         $this->document_currency_code = $this->invoice->document_currency_code ?? 'NGN';
         $this->selected_currency = $this->document_currency_code;
@@ -449,12 +449,13 @@ class InvoiceEdit extends Component
         $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
         $this->total_amount = round($taxable + $this->vat_amount, 2);
 
-        // Apply withholding tax if enabled
+        // Apply withholding tax if enabled (on taxable amount only, excluding VAT)
         if ($this->withholding_tax_enabled) {
-            $this->withholding_tax_amount = round($this->total_amount * ($this->withholding_tax_rate / 100), 2);
-            $this->total_amount = round($this->total_amount - $this->withholding_tax_amount, 2);
+            $this->withholding_tax_amount = round($taxable * ($this->withholding_tax_rate / 100), 2);
+            $this->total_amount = round($taxable + $this->vat_amount - $this->withholding_tax_amount, 2);
         } else {
             $this->withholding_tax_amount = 0;
+            $this->total_amount = round($taxable + $this->vat_amount, 2);
         }
 
         $this->legal_monetary_total = [
@@ -631,6 +632,158 @@ class InvoiceEdit extends Component
     public function render()
     {
         return view('livewire.invoices.invoice-edit');
+    }
+
+    public function validateInvoice()
+    {
+        $this->validating = true;
+        $this->validate();
+
+        $this->ensureEntityIdentifiers();
+
+        try {
+            $this->computeTotals();
+
+            if (empty($this->customer['postal_address'])) {
+                $this->customer['postal_address'] = [
+                    'street_name' => 'Unknown Street',
+                    'city_name' => 'Unknown City',
+                    'postal_zone' => '000000',
+                    'country' => 'NG',
+                ];
+            }
+
+            // build payload for Taxly validation - include all required fields
+            $payload = [
+                'channel' => 'api',
+                'business_id' => $this->business_id,
+                'invoice_reference' => $this->invoice_reference,
+                'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
+                'issue_date' => $this->issue_date,
+                'due_date' => $this->due_date,
+                'issue_time' => now()->format('H:i:s'),
+                'invoice_type_code' => $this->invoice_type_code,
+                'document_currency_code' => $this->document_currency_code,
+                'tax_currency_code' => $this->document_currency_code, // Required field
+                'payment_status' => 'PENDING', // Required field
+                'accounting_supplier_party' => $this->supplier,
+                'legal_monetary_total' => $this->legal_monetary_total,
+                'invoice_line' => $this->formatInvoiceLinesForTaxly(),
+                // Add required fields for validation
+                'payment_means' => [
+                    [
+                        'payment_means_code' => '10',
+                        'payment_due_date' => $this->due_date,
+                    ],
+                ],
+                'allowance_charge' => $this->getFormattedAllowanceCharges(),
+                'tax_total' => [
+                    [
+                        'tax_amount' => $this->vat_amount,
+                        'tax_subtotal' => [
+                            [
+                                'taxable_amount' => $this->sub_total,
+                                'tax_amount' => $this->vat_amount,
+                                'tax_category' => [
+                                    'id' => $this->tax_category_id,
+                                    'percent' => $this->vat_rate,
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+
+            // Only include customer party if customer is selected
+            if ($this->customer_id || !empty($this->customer['party_name'])) {
+                $payload['accounting_customer_party'] = $this->customer;
+            }
+            Log::debug('Invoice validation payload', ['payload' => $payload]);
+            // call Taxly service for validation
+            $cred = TaxlyCredential::first();
+            $taxly = new TaxlyService($cred);
+
+            // validate invoice structure
+            $taxly->validateInvoice($payload);
+
+            $this->message = 'Invoice validation successful! Ready to submit.';
+            $this->dispatch('validation-success', message: 'Invoice structure is valid');
+        } catch (Throwable $e) {
+            $readableError = $this->extractReadableFirsError($e);
+            $this->addError('validation', $readableError);
+            $this->message = $readableError;
+
+            Log::error('Invoice validation error', ['error' => $readableError]);
+        } finally {
+            $this->validating = false;
+        }
+    }
+
+    public function validateIRN()
+    {
+        $this->validating = true;
+
+        try {
+            $this->validate();
+
+            $this->ensureEntityIdentifiers();
+
+            $this->computeTotals();
+
+            // build payload for Taxly validation
+            $payload = [
+                'invoice_reference' => $this->invoice_reference,
+                'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
+                'business_id' => $this->business_id,
+            ];
+
+            Log::debug('IRN validation payload', ['payload' => $payload]);
+
+            $cred = TaxlyCredential::first();
+            $taxly = new TaxlyService($cred);
+
+            // validate irn structure
+            $taxly->validateIrn($payload);
+
+            $this->message = 'IRN validation successful! Ready to submit.';
+            $this->dispatch('validation-success', message: 'IRN structure is valid');
+        } catch (Throwable $e) {
+            $readableError = $this->extractReadableFirsError($e);
+            $this->addError('validation', $readableError);
+            $this->message = $readableError;
+
+            Log::error('IRN validation error', [
+                'error' => $readableError,
+                'full_exception' => $e->getMessage() // Log full message separately for debugging
+            ]);
+        } finally {
+            $this->validating = false;
+        }
+    }
+
+    /**
+     * Format invoice lines for Taxly API with proper data types
+     */
+    private function formatInvoiceLinesForTaxly(): array
+    {
+        return array_map(function ($line, $index) {
+            return [
+                'hsn_code' => $line['hsn_code'] ?? $this->generateHsnCode(),
+                'product_category' => $line['product_category'] ?? 'General Items',
+                'invoiced_quantity' => (float) ($line['invoiced_quantity'] ?? 0),
+                'line_extension_amount' => (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)),
+                'item' => [
+                    'name' => $line['item']['name'] ?? '',
+                    'description' => $line['item']['description'] ?? '',
+                ],
+                'price' => [
+                    'price_amount' => (float) ($line['price']['price_amount'] ?? 0),
+                    'base_quantity' => (float) ($line['price']['base_quantity'] ?? 1),
+                    'price_unit' => $line['price']['price_unit'] ?? 'NGN per 1',
+                ],
+                'order' => $index,
+            ];
+        }, $this->invoice_lines, array_keys($this->invoice_lines));
     }
 
     public function extractReadableFirsError(Throwable $e)
