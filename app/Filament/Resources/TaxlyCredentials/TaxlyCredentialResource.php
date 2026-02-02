@@ -8,7 +8,6 @@ use App\Filament\Resources\TaxlyCredentials\Pages\ListTaxlyCredentials;
 use App\Filament\Resources\TaxlyCredentials\Schemas\TaxlyCredentialForm;
 use App\Filament\Resources\TaxlyCredentials\Tables\TaxlyCredentialsTable;
 use App\Models\TaxlyCredential;
-use Illuminate\Support\Facades\Auth;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -22,16 +21,6 @@ class TaxlyCredentialResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Configuration';
-    public static function canAccess(): bool
-    {
-        $user = Auth::user();
-
-        if (! $user || ! is_callable([$user, 'hasRole'])) {
-            return false;
-        }
-
-        return is_callable([$user, 'hasRole']) ? call_user_func([$user, 'hasRole'], 'super admin') : false;
-    }
 
     public static function form(Schema $schema): Schema
     {

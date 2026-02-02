@@ -17,6 +17,11 @@ class Tenant extends Model
         return $this->hasMany(Organization::class);
     }
 
+    public function customers()
+    {
+        return $this->hasMany(Customer::class);
+    }
+
     public function taxlyCredential()
     {
         return $this->hasOne(TaxlyCredential::class);
