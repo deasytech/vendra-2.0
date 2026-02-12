@@ -12,17 +12,26 @@ class TaxlyCredential extends Model
 
     protected $fillable = [
         'tenant_id',
+        'organization_id',
+        'tenant_name',
         'auth_type',
         'api_key',
+        'api_key_id',
+        'api_key_permissions',
         'token',
         'token_expires_at',
         'base_url',
-        'meta'
+        'meta',
+        'is_integrator',
+        'integrator_status',
+        'integrator_contact_email',
     ];
 
     protected $casts = [
         'meta' => 'array',
+        'api_key_permissions' => 'array',
         'token_expires_at' => 'datetime',
+        'is_integrator' => 'boolean',
     ];
 
     public function tenant()

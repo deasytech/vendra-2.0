@@ -4,6 +4,7 @@ use App\Livewire\Customers\CustomerCreate;
 use App\Livewire\Customers\CustomerEdit;
 use App\Livewire\Customers\CustomersIndex;
 use App\Livewire\Dashboard;
+use App\Livewire\Invoices\ExchangeInvoices;
 use App\Livewire\Invoices\InvoiceCreate;
 use App\Livewire\Invoices\InvoiceEdit;
 use App\Livewire\Invoices\InvoiceShow;
@@ -14,6 +15,7 @@ use App\Livewire\Settings\GeneralSettings;
 use App\Livewire\Settings\Logo;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
+use App\Livewire\Settings\TaxlyIntegration;
 use App\Livewire\Settings\TwoFactor;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -34,6 +36,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('settings/appearance', Appearance::class)->name('settings.appearance');
     Route::get('settings/logo', Logo::class)->name('settings.logo');
     Route::get('settings/general', GeneralSettings::class)->name('settings.general');
+    Route::get('settings/taxly-integration', TaxlyIntegration::class)->name('settings.taxly-integration');
 
     Route::get('settings/two-factor', TwoFactor::class)
         ->middleware(
@@ -54,6 +57,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customers/create', CustomerCreate::class)->name('customers.create');
     Route::get('/customers/{customer}/edit', CustomerEdit::class)->name('customers.edit');
     Route::get('/invoice-exchange', TransmittedInvoices::class)->name('invoice-exchange');
+    Route::get('/exchange-invoices', ExchangeInvoices::class)->name('exchange-invoices');
 });
 
 require __DIR__ . '/auth.php';

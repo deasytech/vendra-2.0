@@ -11,6 +11,8 @@
             </flux:navlist.item>
             <flux:navlist.item :href="route('settings.logo')" wire:navigate>{{ __('Logo') }}</flux:navlist.item>
             <flux:navlist.item :href="route('settings.general')" wire:navigate>{{ __('General') }}</flux:navlist.item>
+            <flux:navlist.item :href="route('settings.taxly-integration')" wire:navigate>{{ __('Taxly Integration') }}
+            </flux:navlist.item>
         </flux:navlist>
     </div>
 
@@ -20,7 +22,7 @@
         <flux:heading>{{ $heading ?? '' }}</flux:heading>
         <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
 
-        <div class="mt-5 w-full max-w-lg">
+        <div class="mt-5 w-full">
             {{ $slot }}
         </div>
     </div>

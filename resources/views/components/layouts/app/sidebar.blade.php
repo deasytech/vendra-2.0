@@ -33,8 +33,8 @@
                 </flux:navlist.item>
 
                 <!-- Invoice Exchange -->
-                <flux:navlist.item icon="paper-airplane" :href="route('invoice-exchange')"
-                    :current="request()->routeIs('invoice-exchange')" wire:navigate>
+                <flux:navlist.item icon="paper-airplane" :href="route('exchange-invoices')"
+                    :current="request()->routeIs('exchange-invoices')" wire:navigate>
                     {{ __('Invoice Exchange') }}
                 </flux:navlist.item>
             </flux:navlist.group>

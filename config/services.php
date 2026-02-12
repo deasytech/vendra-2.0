@@ -44,5 +44,7 @@ return [
         'base_url' => env('TAXLY_BASE_URL', 'https://dev.taxly.ng/api/v1'),
         'api_key' => env('TAXLY_API_KEY'),
         'integrator_service_id' => env('TAXLY_INTEGRATOR_SERVICE_ID', 109029),
+        'webhook_secret' => env('TAXLY_WEBHOOK_SECRET'),
+        'landlord_id' => env('TAXLY_LANDLORD_ID', null),
     ]
 ];
