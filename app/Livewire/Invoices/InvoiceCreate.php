@@ -642,7 +642,10 @@ class InvoiceCreate extends Component
             Log::debug('Invoice submission payload', ['payload' => $payload]);
 
             // call Taxly service to submit to FIRS (but not transmit)
-            $cred = TaxlyCredential::first();
+            // Get the Taxly tenant_id from settings (the one from Taxly integrator registration)
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             // submit invoice to FIRS (this is the submission step, not transmission)
@@ -761,7 +764,10 @@ class InvoiceCreate extends Component
             }
             Log::debug('Invoice validation payload', ['payload' => $payload]);
             // call Taxly service for validation
-            $cred = TaxlyCredential::first();
+            // Get the Taxly tenant_id from settings (the one from Taxly integrator registration)
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             // validate invoice structure
@@ -800,7 +806,10 @@ class InvoiceCreate extends Component
 
             Log::debug('IRN validation payload', ['payload' => $payload]);
 
-            $cred = TaxlyCredential::first();
+            // Get the Taxly tenant_id from settings (the one from Taxly integrator registration)
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             // validate irn structure

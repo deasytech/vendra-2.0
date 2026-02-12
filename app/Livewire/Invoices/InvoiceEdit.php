@@ -699,8 +699,10 @@ class InvoiceEdit extends Component
                 $payload['accounting_customer_party'] = $this->customer;
             }
             Log::debug('Invoice validation payload', ['payload' => $payload]);
-            // call Taxly service for validation
-            $cred = TaxlyCredential::first();
+            // call Taxly service for validation using Taxly tenant_id from settings
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             // validate invoice structure
@@ -739,7 +741,10 @@ class InvoiceEdit extends Component
 
             Log::debug('IRN validation payload', ['payload' => $payload]);
 
-            $cred = TaxlyCredential::first();
+            // Get the Taxly tenant_id from settings (the one from Taxly integrator registration)
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             // validate irn structure

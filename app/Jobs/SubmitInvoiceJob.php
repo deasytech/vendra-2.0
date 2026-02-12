@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Models\Invoice;
+use App\Models\Setting;
+use App\Models\TaxlyCredential;
 use App\Services\TaxlyService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,7 +21,11 @@ class SubmitInvoiceJob implements ShouldQueue
 
     public function handle(): void
     {
-        $service = new TaxlyService($this->invoice->tenant->taxlyCredential);
+        // Get the Taxly tenant_id from settings (the one from Taxly integrator registration)
+        $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+        // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+        $credential = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
+        $service = new TaxlyService($credential);
 
         $payload = [
             'invoice_reference' => $this->invoice->invoice_reference,

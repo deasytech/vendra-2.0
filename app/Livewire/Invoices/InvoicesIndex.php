@@ -4,6 +4,7 @@ namespace App\Livewire\Invoices;
 
 use App\Models\Invoice;
 use App\Models\Customer;
+use App\Models\Setting;
 use App\Services\TaxlyService;
 use App\Models\TaxlyCredential;
 use App\Jobs\SubmitInvoiceJob;
@@ -217,8 +218,10 @@ class InvoicesIndex extends Component
                 return;
             }
 
-            // ✅ Initialize TaxlyService
-            $cred = TaxlyCredential::first();
+            // ✅ Initialize TaxlyService using Taxly tenant_id from settings
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             $webhookUrl = route('taxly.webhook.invoice');
@@ -308,8 +311,10 @@ class InvoicesIndex extends Component
                 return;
             }
 
-            // ✅ Initialize TaxlyService
-            $cred = TaxlyCredential::first();
+            // ✅ Initialize TaxlyService using Taxly tenant_id from settings
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             $webhookUrl = route('taxly.webhook.invoice');
@@ -419,8 +424,10 @@ class InvoicesIndex extends Component
                 'tax_total' => $this->buildTaxTotal($invoice),
             ];
 
-            // Call Taxly service to submit to FIRS
-            $cred = TaxlyCredential::first();
+            // Call Taxly service to submit to FIRS using Taxly tenant_id from settings
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             // Submit invoice to FIRS

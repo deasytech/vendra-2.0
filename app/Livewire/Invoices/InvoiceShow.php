@@ -110,8 +110,10 @@ class InvoiceShow extends Component
                 return;
             }
 
-            // ✅ Initialize TaxlyService
-            $cred = TaxlyCredential::first();
+            // ✅ Initialize TaxlyService using Taxly tenant_id from settings
+            $taxlyTenantId = \App\Models\Setting::getValue('taxly_tenant_id');
+            // Use withoutGlobalScopes since Taxly tenant_id is external to our tenant system
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
             $taxly = new TaxlyService($cred);
 
             $webhookUrl = route('taxly.webhook.invoice');

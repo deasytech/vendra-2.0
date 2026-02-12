@@ -99,6 +99,7 @@ class TaxlyService
     public function validateIrn(array $payload): array
     {
         try {
+            Log::info('Validating IRN with Taxly', ['payload' => $payload, 'url' => $this->baseUrl . '/invoices/irn/validate']);
             $res = $this->client()->post('/invoices/irn/validate', $payload);
             $res->throw();
             return $res->json();
