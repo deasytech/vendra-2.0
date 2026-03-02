@@ -49,7 +49,8 @@ class InvoiceShow extends Component
             $qrCode = $writer->writeString($data);
 
             return 'data:image/png;base64,' . base64_encode($qrCode);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::warning('Imagick QR code generation failed, using SVG fallback', ['error' => $e->getMessage()]);
             // Fallback to SVG if ImageMagick is not available
             return $this->generateFallbackQrCode($data);
         }
@@ -57,31 +58,21 @@ class InvoiceShow extends Component
 
     private function generateFallbackQrCode(string $data): string
     {
-        // Simple SVG QR code fallback
-        $size = 200;
-        $moduleSize = 4; // Size of each QR module
-        $modules = 25; // Number of modules (simplified)
+        try {
+            // Use SvgImageBackEnd which does not require external extensions like Imagick or GD
+            $renderer = new ImageRenderer(
+                new RendererStyle(200, margin: 10),
+                new \BaconQrCode\Renderer\Image\SvgImageBackEnd()
+            );
 
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $size . '" height="' . $size . '" viewBox="0 0 ' . $size . ' ' . $size . '">';
-        $svg .= '<rect width="' . $size . '" height="' . $size . '" fill="white"/>';
+            $writer = new Writer($renderer);
+            $qrCode = $writer->writeString($data);
 
-        // Create a simple pattern (this is a simplified QR representation)
-        // In a real implementation, you'd want to use the actual QR algorithm
-        for ($row = 0; $row < $modules; $row++) {
-            for ($col = 0; $col < $modules; $col++) {
-                // Simple pattern generation based on data hash
-                $hash = crc32($data . $row . $col);
-                if ($hash % 2 == 0) {
-                    $x = ($col * $moduleSize) + 10;
-                    $y = ($row * $moduleSize) + 10;
-                    $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $moduleSize . '" height="' . $moduleSize . '" fill="black"/>';
-                }
-            }
+            return 'data:image/svg+xml;base64,' . base64_encode($qrCode);
+        } catch (\Throwable $e) {
+            Log::error('Fallback SVG QR code generation failed', ['error' => $e->getMessage()]);
+            return '';
         }
-
-        $svg .= '</svg>';
-
-        return 'data:image/svg+xml;base64,' . base64_encode($svg);
     }
 
     public function transmitInvoice()
