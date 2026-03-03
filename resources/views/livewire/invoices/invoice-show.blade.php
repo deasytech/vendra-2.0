@@ -334,11 +334,19 @@
                     <tbody>
                         @forelse ($invoice->lines as $item)
                             @php
-                                $lineQty = (float) ($item->invoiced_quantity ?? ($item->quantity ?? 0));
-                                $linePrice = (float) ($item->price['price_amount'] ?? 0);
-                                $lineTotal = isset($item->line_extension_amount)
-                                    ? (float) $item->line_extension_amount
-                                    : $lineQty * $linePrice;
+                                $lineQty =
+                                    (float) ($item->invoiced_quantity ??
+                                        ($item->quantity ?? ($item->item['quantity'] ?? 0)));
+                                $linePrice =
+                                    (float) ($item->unit_price ??
+                                        ($item->price['price_amount'] ??
+                                            ($item->price_amount ?? ($item->item['unit_price'] ?? 0))));
+                                $lineTotal = $lineQty * $linePrice;
+
+                                // Fallback only when legacy records have no qty/price but store line extension
+                                if ($lineTotal == 0.0 && !empty($item->line_extension_amount)) {
+                                    $lineTotal = (float) $item->line_extension_amount;
+                                }
                             @endphp
                             <tr
                                 class="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
@@ -354,7 +362,8 @@
                                 <td class="p-3 text-zinc-600 dark:text-zinc-400">{{ $item->product_category ?? '-' }}
                                 </td>
                                 <td class="p-3 text-right text-zinc-900 dark:text-zinc-100">
-                                    {{ number_format($lineQty, 2) }}</td>
+                                    {{ number_format($lineQty, 2) }}
+                                </td>
                                 <td class="p-3 text-right text-zinc-900 dark:text-zinc-100">
                                     @php
                                         $currency = $invoice->document_currency_code;
@@ -371,7 +380,6 @@
                                     {{ $currencySymbol }}{{ number_format($linePrice, 2) }}
                                 </td>
                                 <td class="p-3 text-right font-semibold text-zinc-900 dark:text-zinc-100">
-                                    {{-- {{ $currencySymbol }}{{ number_format($lineAmount, 2) }} --}}
                                     {{ $currencySymbol }}{{ number_format($lineTotal, 2) }}
                                 </td>
                             </tr>
@@ -547,12 +555,17 @@
                     $withholdingEnabled = (bool) ($metadata['withholding_tax_enabled'] ?? false);
                     $withholdingRate = (float) ($metadata['withholding_tax_rate'] ?? 0);
                     $calculatedLineExtension = $invoice->lines->sum(function ($line) {
-                        $qty = (float) ($line->invoiced_quantity ?? ($line->quantity ?? 0));
-                        $price = (float) ($line->price['price_amount'] ?? 0);
+                        $qty =
+                            (float) ($line->invoiced_quantity ?? ($line->quantity ?? ($line->item['quantity'] ?? 0)));
+                        $price =
+                            (float) ($line->unit_price ??
+                                ($line->price['price_amount'] ??
+                                    ($line->price_amount ?? ($line->item['unit_price'] ?? 0))));
+                        $lineTotal = $qty * $price;
 
-                        return isset($line->line_extension_amount)
+                        return $lineTotal == 0.0 && !empty($line->line_extension_amount)
                             ? (float) $line->line_extension_amount
-                            : $qty * $price;
+                            : $lineTotal;
                     });
                     $withholdingAmount = (float) ($metadata['withholding_tax_amount'] ?? 0);
                     $lineExtension = isset($invoice->legal_monetary_total['line_extension_amount'])
