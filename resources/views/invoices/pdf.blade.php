@@ -250,8 +250,7 @@
 
         /* Tax Table */
         .tax-table {
-            width: 60%;
-            margin-left: auto;
+            width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
@@ -486,13 +485,17 @@
                     @if (!empty($orgAddress['street_name']) || !empty($orgAddress['city_name']))
                         <div class="info-item" style="margin-top: 8px;">
                             @if ($orgAddress['street_name'] ?? '')
-                                {{ $orgAddress['street_name'] }}<br>@endif
+                                {{ $orgAddress['street_name'] }}<br>
+                            @endif
                             @if ($orgAddress['city_name'] ?? '')
-                                {{ $orgAddress['city_name'] }}@endif
+                                {{ $orgAddress['city_name'] }}
+                            @endif
                             @if ($orgAddress['postal_zone'] ?? '')
-                                {{ $orgAddress['postal_zone'] }}<br>@endif
+                                {{ $orgAddress['postal_zone'] }}<br>
+                            @endif
                             @if ($orgAddress['country'] ?? '')
-                                {{ $orgAddress['country'] }}@endif
+                                {{ $orgAddress['country'] }}
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -515,15 +518,20 @@
                     @if ($invoice->customer->street_name || $invoice->customer->city_name)
                         <div class="info-item" style="margin-top: 8px;">
                             @if ($invoice->customer->street_name)
-                                {{ $invoice->customer->street_name }}<br>@endif
+                                {{ $invoice->customer->street_name }}<br>
+                            @endif
                             @if ($invoice->customer->city_name)
-                                {{ $invoice->customer->city_name }}@endif
+                                {{ $invoice->customer->city_name }}
+                            @endif
                             @if ($invoice->customer->postal_zone)
-                                {{ $invoice->customer->postal_zone }}<br>@endif
+                                {{ $invoice->customer->postal_zone }}<br>
+                            @endif
                             @if ($invoice->customer->state)
-                                {{ $invoice->customer->state }}@endif
+                                {{ $invoice->customer->state }}
+                            @endif
                             @if ($invoice->customer->country)
-                                {{ $invoice->customer->country }}@endif
+                                {{ $invoice->customer->country }}
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -568,6 +576,27 @@
                 </thead>
                 <tbody>
                     @foreach ($invoice->lines as $item)
+                        @php
+                            $itemQty = (float) ($item->invoiced_quantity ?? 0);
+                            $itemPrice = (float) ($item->price['price_amount'] ?? 0);
+
+                            // Use pre-calculated line_extension_amount if available (this is qty * price)
+                            if (!empty($item->line_extension_amount) && $item->line_extension_amount > 0) {
+                                $itemLineTotal = (float) $item->line_extension_amount;
+                            } else {
+                                $itemLineTotal = $itemQty * $itemPrice;
+                            }
+
+                            $currencySymbol = match ($invoice->document_currency_code) {
+                                'NGN' => '₦',
+                                'USD' => '$',
+                                'EUR' => '€',
+                                'GBP' => '£',
+                                'CAD' => 'CA$',
+                                'GHS' => 'GH₵',
+                                default => $invoice->document_currency_code . ' ',
+                            };
+                        @endphp
                         <tr>
                             <td>
                                 <div class="item-description">{{ $item->description }}</div>
@@ -577,22 +606,11 @@
                             </td>
                             <td>{{ $item->hsn_code ?? '-' }}</td>
                             <td>{{ $item->product_category ?? '-' }}</td>
-                            <td>{{ number_format($item->invoiced_quantity ?? $item->quantity, 2) }}</td>
+                            <td>{{ number_format($itemQty, 2) }}</td>
                             <td>
-                                @php
-                                    $currencySymbol = match ($invoice->document_currency_code) {
-                                        'NGN' => '₦',
-                                        'USD' => '$',
-                                        'EUR' => '€',
-                                        'GBP' => '£',
-                                        'CAD' => 'CA$',
-                                        'GHS' => 'GH₵',
-                                        default => $invoice->document_currency_code . ' ',
-                                    };
-                                @endphp
-                                {{ $currencySymbol }}{{ number_format($item->price['price_amount'] ?? 0, 2) }}
+                                {{ $currencySymbol }}{{ number_format($itemPrice, 2) }}
                             </td>
-                            <td>{{ $currencySymbol }}{{ number_format($item->line_total ?? 0, 2) }}</td>
+                            <td>{{ $currencySymbol }}{{ number_format($itemLineTotal, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -607,6 +625,8 @@
                     <thead>
                         <tr>
                             <th>Tax Type</th>
+                            <th style="text-align: right;">Rate</th>
+                            <th style="text-align: right;">Taxable Base</th>
                             <th style="text-align: right;">Amount</th>
                         </tr>
                     </thead>
@@ -617,10 +637,16 @@
                                 $firstSubtotal =
                                     is_array($taxSubtotals) && count($taxSubtotals) > 0 ? $taxSubtotals[0] : [];
                                 $taxCategory = $firstSubtotal['tax_category'] ?? 'Tax';
+                                $taxRate = $firstSubtotal['tax_percentage'] ?? 0;
+                                $taxableAmount = $firstSubtotal['taxable_amount'] ?? 0;
                             @endphp
                             <tr>
                                 <td>{{ $taxCategory }}</td>
-                                <td>{{ $currencySymbol }}{{ number_format($tax->tax_amount ?? 0, 2) }}</td>
+                                <td style="text-align: right;">{{ $taxRate }}%</td>
+                                <td style="text-align: right;">
+                                    {{ $currencySymbol }}{{ number_format($taxableAmount, 2) }}</td>
+                                <td style="text-align: right;">
+                                    {{ $currencySymbol }}{{ number_format($tax->tax_amount ?? 0, 2) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -635,7 +661,17 @@
             $withholdingEnabled = (bool) ($metadata['withholding_tax_enabled'] ?? false);
             $withholdingRate = (float) ($metadata['withholding_tax_rate'] ?? 0);
             $withholdingAmount = (float) ($metadata['withholding_tax_amount'] ?? 0);
-            $lineExtension = $invoice->lines->sum('line_total');
+
+            // Calculate line extension using same logic as line items
+            $lineExtension = $invoice->lines->sum(function ($line) {
+                if (!empty($line->line_extension_amount) && $line->line_extension_amount > 0) {
+                    return (float) $line->line_extension_amount;
+                }
+                $qty = (float) ($line->invoiced_quantity ?? 0);
+                $price = (float) ($line->price['price_amount'] ?? 0);
+                return $qty * $price;
+            });
+
             $taxAmount = $invoice->taxTotals->sum('tax_amount');
             $taxInclusive = $lineExtension + $taxAmount;
         @endphp
@@ -644,6 +680,10 @@
             <div class="summary-box">
                 <div class="summary-row">
                     <span class="text-muted">Subtotal:</span>
+                    <span>{{ $currencySymbol }}{{ number_format($lineExtension, 2) }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="text-muted">Tax Exclusive:</span>
                     <span>{{ $currencySymbol }}{{ number_format($lineExtension, 2) }}</span>
                 </div>
                 <div class="summary-row">
@@ -678,3 +718,61 @@
 
                 @if ($withholdingEnabled)
                     <div class="summary-row discount">
+                        <span class="text-muted">Withholding Tax ({{ $withholdingRate }}%):</span>
+                        <span>-{{ $currencySymbol }}{{ number_format($withholdingAmount, 2) }}</span>
+                    </div>
+                @endif
+
+                <div class="summary-divider"></div>
+
+                <div class="summary-row total">
+                    <span>Grand Total:</span>
+                    <span>{{ $currencySymbol }}{{ number_format($taxInclusive, 2) }}</span>
+                </div>
+            </div>
+        </div>
+
+        {{-- QR Code Section --}}
+        @if (isset($qrDataUri) && $qrDataUri)
+            <div class="qr-section">
+                <div class="qr-code">
+                    <img src="{{ $qrDataUri }}" alt="FIRS QR Code">
+                </div>
+                <div class="qr-info">
+                    <div class="qr-title">FIRS QR Code</div>
+                    <div class="qr-description">Scan this QR code to verify invoice authenticity</div>
+                    @if ($invoice->irn)
+                        <div class="irn-code">IRN: {{ $invoice->irn }}</div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        {{-- Notes Section --}}
+        @if ($invoice->note || $invoice->payment_terms_note)
+            <div class="notes-section">
+                <div class="notes-box">
+                    @if ($invoice->note)
+                        <div class="notes-title">Notes</div>
+                        <div class="notes-text">
+                            {{ is_array($invoice->note) ? implode(', ', $invoice->note) : $invoice->note }}</div>
+                    @endif
+                    @if ($invoice->payment_terms_note)
+                        <div class="notes-title" style="margin-top: 12px;">Payment Terms</div>
+                        <div class="notes-text">
+                            {{ is_array($invoice->payment_terms_note) ? implode(', ', $invoice->payment_terms_note) : $invoice->payment_terms_note }}
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        {{-- Footer --}}
+        <div class="footer">
+            <div class="footer-text">Generated by {{ \App\Models\Setting::getValue('project_name', 'Vendra') }} on
+                {{ now()->format('F d, Y') }}</div>
+        </div>
+    </div>
+</body>
+
+</html>

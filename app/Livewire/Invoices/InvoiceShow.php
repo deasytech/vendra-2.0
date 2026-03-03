@@ -181,8 +181,17 @@ class InvoiceShow extends Component
 
             $filename = 'invoice-' . Str::slug($invoice->invoice_reference ?: ('ref-' . $invoice->id)) . '.pdf';
 
+            // Generate QR code data URI if IRN exists
+            $qrDataUri = null;
+            if ($invoice->irn) {
+                $encrypted = app(FirsQrService::class)->generateEncryptedQrPayload($invoice->irn);
+                $qrDataUri = $this->generateQrCode($encrypted);
+            }
+
             $pdf = Pdf::loadView('pdf.invoice', [
                 'invoice' => $invoice,
+                'qrDataUri' => $qrDataUri,
+                'irn' => $invoice->irn,
             ])->setPaper('a4', 'portrait');
 
             return response()->streamDownload(function () use ($pdf) {

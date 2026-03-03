@@ -12,7 +12,6 @@ use App\Livewire\Invoices\InvoicesIndex;
 use App\Livewire\Invoices\TransmittedInvoices;
 use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\GeneralSettings;
-use App\Livewire\Settings\Logo;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\TaxlyIntegration;
@@ -34,7 +33,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('settings/profile', Profile::class)->name('settings.profile');
     Route::get('settings/password', Password::class)->name('settings.password');
     Route::get('settings/appearance', Appearance::class)->name('settings.appearance');
-    Route::get('settings/logo', Logo::class)->name('settings.logo');
     Route::get('settings/general', GeneralSettings::class)->name('settings.general');
     Route::get('settings/taxly-integration', TaxlyIntegration::class)->name('settings.taxly-integration');
 

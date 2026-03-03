@@ -124,15 +124,29 @@
             default => $currency . ' ',
         };
 
+        // Calculate line totals with same logic as invoice show page
         $lineSubtotal = $invoice->lines->sum(function ($line) {
-            $qty = (float) ($line->invoiced_quantity ?? ($line->quantity ?? 0));
+            // Use pre-calculated line_extension_amount if available (this is qty * price)
+            if (!empty($line->line_extension_amount) && $line->line_extension_amount > 0) {
+                return (float) $line->line_extension_amount;
+            }
+
+            // Otherwise calculate from price array
+            $qty = (float) ($line->invoiced_quantity ?? 0);
             $price = (float) ($line->price['price_amount'] ?? 0);
-            return isset($line->line_extension_amount) ? (float) $line->line_extension_amount : $qty * $price;
+            return $qty * $price;
         });
 
         $taxAmount = (float) $invoice->taxTotals->sum('tax_amount');
         $taxExclusive = (float) ($invoice->legal_monetary_total['tax_exclusive_amount'] ?? $lineSubtotal);
         $grandTotal = (float) ($invoice->legal_monetary_total['tax_inclusive_amount'] ?? $taxExclusive + $taxAmount);
+
+        // Metadata for withholding tax and allowances
+        $metadata = is_array($invoice->metadata) ? $invoice->metadata : [];
+        $allowanceCharges = is_array($metadata['allowance_charges'] ?? null) ? $metadata['allowance_charges'] : [];
+        $withholdingEnabled = (bool) ($metadata['withholding_tax_enabled'] ?? false);
+        $withholdingRate = (float) ($metadata['withholding_tax_rate'] ?? 0);
+        $withholdingAmount = (float) ($metadata['withholding_tax_amount'] ?? 0);
     @endphp
 
     <table class="header-table">
@@ -167,7 +181,8 @@
                         <tr>
                             <td class="muted">Issue Date:</td>
                             <td class="text-right">
-                                <strong>{{ optional($invoice->issue_date)->format('d M, Y') }}</strong></td>
+                                <strong>{{ optional($invoice->issue_date)->format('d M, Y') }}</strong>
+                            </td>
                         </tr>
                         <tr>
                             <td class="muted">Due Date:</td>
@@ -181,7 +196,8 @@
                         <tr>
                             <td class="muted">Status:</td>
                             <td class="text-right">
-                                <strong>{{ strtoupper($invoice->payment_status ?? 'PENDING') }}</strong></td>
+                                <strong>{{ strtoupper($invoice->payment_status ?? 'PENDING') }}</strong>
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -205,15 +221,19 @@
         <tbody>
             @forelse ($invoice->lines as $index => $line)
                 @php
-                    $qty = (float) ($line->invoiced_quantity ?? ($line->quantity ?? 0));
+                    $qty = (float) ($line->invoiced_quantity ?? 0);
                     $price = (float) ($line->price['price_amount'] ?? 0);
-                    $lineTotal = isset($line->line_extension_amount)
-                        ? (float) $line->line_extension_amount
-                        : $qty * $price;
+
+                    // Use pre-calculated line_extension_amount if available (this is qty * price)
+                    if (!empty($line->line_extension_amount) && $line->line_extension_amount > 0) {
+                        $lineTotal = (float) $line->line_extension_amount;
+                    } else {
+                        $lineTotal = $qty * $price;
+                    }
                 @endphp
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ $line->description ?? ($line->item['name'] ?? '-') }}</td>
+                    <td>{{ $line->description ?? ($line->item['name'] ?? ($line->item['description'] ?? '-')) }}</td>
                     <td>{{ $line->hsn_code ?? '-' }}</td>
                     <td class="text-right">{{ number_format($qty, 2) }}</td>
                     <td class="text-right">{{ $currencySymbol }}{{ number_format($price, 2) }}</td>
@@ -227,6 +247,63 @@
         </tbody>
     </table>
 
+    {{-- Tax Breakdown Section --}}
+    @if ($invoice->taxTotals->count() > 0)
+        <div class="spacer-16"></div>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 35%;">Tax Type</th>
+                    <th style="width: 25%;" class="text-right">Rate</th>
+                    <th style="width: 20%;" class="text-right">Taxable Base</th>
+                    <th style="width: 20%;" class="text-right">Tax Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($invoice->taxTotals as $tax)
+                    @php
+                        $taxSubtotals = $tax->tax_subtotal ?? [];
+                        $firstSubtotal = is_array($taxSubtotals) && count($taxSubtotals) > 0 ? $taxSubtotals[0] : [];
+                        $taxCategory = $firstSubtotal['tax_category'] ?? 'Tax';
+                        $taxRate = $firstSubtotal['tax_percentage'] ?? 0;
+                        $taxableAmount = $firstSubtotal['taxable_amount'] ?? 0;
+                    @endphp
+                    <tr>
+                        <td>{{ $taxCategory }}</td>
+                        <td class="text-right">{{ $taxRate }}%</td>
+                        <td class="text-right">{{ $currencySymbol }}{{ number_format($taxableAmount, 2) }}</td>
+                        <td class="text-right">{{ $currencySymbol }}{{ number_format($tax->tax_amount ?? 0, 2) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
+    {{-- IRN and QR Code Section --}}
+    @if ($irn)
+        <div class="spacer-16"></div>
+        <table class="items-table" style="background: #f9fafb;">
+            <tr>
+                <td style="width: 50%; vertical-align: top; border: none;">
+                    <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">FIRS Invoice Reference Number
+                        (IRN)</div>
+                    <div
+                        style="font-family: 'Courier New', monospace; font-size: 11px; color: #111827; word-break: break-all;">
+                        {{ $irn }}
+                    </div>
+                </td>
+                @if ($qrDataUri)
+                    <td style="width: 50%; text-align: right; border: none;">
+                        <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">FIRS QR Code</div>
+                        <img src="{{ $qrDataUri }}" alt="FIRS QR Code"
+                            style="max-width: 120px; height: auto; border: 1px solid #e5e7eb; padding: 4px; background: white;">
+                        <div style="font-size: 9px; color: #6b7280; margin-top: 4px;">Scan to verify authenticity</div>
+                    </td>
+                @endif
+            </tr>
+        </table>
+    @endif
+
     <div class="spacer-16"></div>
 
     <div class="totals-wrap">
@@ -236,8 +313,51 @@
                 <td class="text-right">{{ $currencySymbol }}{{ number_format($lineSubtotal, 2) }}</td>
             </tr>
             <tr>
-                <td class="muted">Tax</td>
+                <td class="muted">Tax Exclusive</td>
+                <td class="text-right">{{ $currencySymbol }}{{ number_format($taxExclusive, 2) }}</td>
+            </tr>
+            <tr>
+                <td class="muted">Tax Amount</td>
                 <td class="text-right">{{ $currencySymbol }}{{ number_format($taxAmount, 2) }}</td>
+            </tr>
+
+            @if (count($allowanceCharges) > 0)
+                @foreach ($allowanceCharges as $charge)
+                    @php
+                        $chargeAmount = (float) ($charge['amount'] ?? 0);
+                        if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                            $chargeAmount = round($lineSubtotal * ($chargeAmount / 100), 2);
+                        }
+                    @endphp
+                    <tr>
+                        <td class="muted">
+                            {{ $charge['reason'] ?? ($charge['charge_indicator'] ? 'Charge' : 'Discount') }}
+                            @if (($charge['amount_type'] ?? 'fixed') === 'percent')
+                                ({{ $charge['amount'] ?? 0 }}%)
+                            @endif
+                        </td>
+                        <td class="text-right"
+                            style="color: {{ !($charge['charge_indicator'] ?? false) ? '#dc2626' : 'inherit' }}">
+                            @if (!($charge['charge_indicator'] ?? false))
+                                -
+                            @endif
+                            {{ $currencySymbol }}{{ number_format($chargeAmount, 2) }}
+                        </td>
+                    </tr>
+                @endforeach
+            @endif
+
+            @if ($withholdingEnabled)
+                <tr>
+                    <td class="muted">Withholding Tax ({{ $withholdingRate }}%)</td>
+                    <td class="text-right" style="color: #dc2626;">
+                        -{{ $currencySymbol }}{{ number_format($withholdingAmount, 2) }}</td>
+                </tr>
+            @endif
+
+            <tr>
+                <td class="muted">Tax Inclusive</td>
+                <td class="text-right">{{ $currencySymbol }}{{ number_format($grandTotal, 2) }}</td>
             </tr>
             <tr class="grand-total">
                 <td>Grand Total</td>

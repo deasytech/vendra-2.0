@@ -27499,10 +27499,6 @@ namespace App\Livewire\Settings {
             }
     /**
      */
-    class Logo extends \Livewire\Component {
-            }
-    /**
-     */
     class GeneralSettings extends \Livewire\Component {
             }
     /**
