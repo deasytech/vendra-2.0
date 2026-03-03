@@ -154,6 +154,11 @@
             <td>
                 <h1 class="title">INVOICE</h1>
                 <div class="ref">Reference: <strong>#{{ $invoice->invoice_reference }}</strong></div>
+                @if ($irn)
+                    <div class="ref" style="margin-top: 4px; font-family: 'Courier New', monospace; font-size: 10px;">
+                        <span style="color: #6b7280;">IRN:</span> <strong>{{ $irn }}</strong>
+                    </div>
+                @endif
             </td>
             <td class="text-right">
                 <div><strong>{{ $invoice->organization->legal_name ?? $projectName }}</strong></div>
@@ -186,7 +191,8 @@
                         </tr>
                         <tr>
                             <td class="muted">Due Date:</td>
-                            <td class="text-right"><strong>{{ optional($invoice->due_date)->format('d M, Y') }}</strong>
+                            <td class="text-right">
+                                <strong>{{ optional($invoice->due_date)->format('d M, Y') }}</strong>
                             </td>
                         </tr>
                         <tr>

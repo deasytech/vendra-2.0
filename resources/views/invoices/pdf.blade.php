@@ -739,7 +739,7 @@
                     <img src="{{ $qrDataUri }}" alt="FIRS QR Code">
                 </div>
                 <div class="qr-info">
-                    <div class="qr-title">FIRS QR Code</div>
+                    <div class="qr-title">NRS QR Code</div>
                     <div class="qr-description">Scan this QR code to verify invoice authenticity</div>
                     @if ($invoice->irn)
                         <div class="irn-code">IRN: {{ $invoice->irn }}</div>
