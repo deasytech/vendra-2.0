@@ -77,35 +77,6 @@ class InvoiceShow extends Component
         }
     }
 
-    // private function generateFallbackQrCode(string $data): string
-    // {
-    //     // Simple SVG QR code fallback
-    //     $size = 200;
-    //     $moduleSize = 4; // Size of each QR module
-    //     $modules = 25; // Number of modules (simplified)
-
-    //     $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' . $size . '" height="' . $size . '" viewBox="0 0 ' . $size . ' ' . $size . '">';
-    //     $svg .= '<rect width="' . $size . '" height="' . $size . '" fill="white"/>';
-
-    //     // Create a simple pattern (this is a simplified QR representation)
-    //     // In a real implementation, you'd want to use the actual QR algorithm
-    //     for ($row = 0; $row < $modules; $row++) {
-    //         for ($col = 0; $col < $modules; $col++) {
-    //             // Simple pattern generation based on data hash
-    //             $hash = crc32($data . $row . $col);
-    //             if ($hash % 2 == 0) {
-    //                 $x = ($col * $moduleSize) + 10;
-    //                 $y = ($row * $moduleSize) + 10;
-    //                 $svg .= '<rect x="' . $x . '" y="' . $y . '" width="' . $moduleSize . '" height="' . $moduleSize . '" fill="black"/>';
-    //             }
-    //         }
-    //     }
-
-    //     $svg .= '</svg>';
-
-    //     return 'data:image/svg+xml;base64,' . base64_encode($svg);
-    // }
-
     public function transmitInvoice()
     {
         $this->isTransmitting = true;
