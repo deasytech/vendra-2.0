@@ -4,6 +4,7 @@ namespace App\Livewire\Invoices;
 
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\InvoiceTaxTotal;
 use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\Setting;
@@ -504,6 +505,7 @@ class InvoiceCreate extends Component
                 'accounting_supplier_party' => $this->supplier,
                 'accounting_customer_party' => $this->customer,
                 'legal_monetary_total' => $this->legal_monetary_total,
+                'metadata' => $this->buildInvoiceMetadata(),
                 'irn' => $irn, // Store IRN for future transmission
                 'transmit' => 'DRAFT', // Set status to DRAFT
             ]);
@@ -512,6 +514,8 @@ class InvoiceCreate extends Component
                 $line['order'] = $i;
                 InvoiceLine::create(array_merge($line, ['invoice_id' => $invoice->id]));
             }
+
+            $this->syncInvoiceTaxTotals($invoice);
 
             // Log draft creation (no Taxly submission)
             $invoice->transmissions()->create([
@@ -584,6 +588,7 @@ class InvoiceCreate extends Component
                 'accounting_supplier_party' => $this->supplier,
                 'accounting_customer_party' => $this->customer,
                 'legal_monetary_total' => $this->legal_monetary_total,
+                'metadata' => $this->buildInvoiceMetadata(),
                 'irn' => $irn, // Store IRN for future transmission
                 'transmit' => 'PENDING', // Set status to PENDING for immediate submission
             ]);
@@ -592,6 +597,8 @@ class InvoiceCreate extends Component
                 $line['order'] = $i;
                 InvoiceLine::create(array_merge($line, ['invoice_id' => $invoice->id]));
             }
+
+            $this->syncInvoiceTaxTotals($invoice);
 
             // build payload for Taxly submission (but NOT transmission)
             $payload = [
@@ -869,6 +876,60 @@ class InvoiceCreate extends Component
                 'order' => $index,
             ];
         }, $this->invoice_lines, array_keys($this->invoice_lines));
+    }
+
+    /**
+     * Persist tax totals so invoice details can render the same tax values shown during creation.
+     */
+    private function syncInvoiceTaxTotals(Invoice $invoice): void
+    {
+        $invoice->taxTotals()->delete();
+
+        $groupedTax = collect($this->invoice_lines)
+            ->map(function ($line) {
+                $taxCode = $line['selected_tax'] ?? 'STANDARD_VAT';
+                $taxRate = (float) $this->getTaxRate($taxCode);
+                $lineExtension = (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0));
+                $lineTaxAmount = round($lineExtension * ($taxRate / 100), 2);
+
+                return [
+                    'tax_code' => $taxCode,
+                    'tax_rate' => $taxRate,
+                    'taxable_amount' => $lineExtension,
+                    'tax_amount' => $lineTaxAmount,
+                ];
+            })
+            ->groupBy('tax_code');
+
+        foreach ($groupedTax as $taxCode => $taxLines) {
+            $taxableAmount = round((float) $taxLines->sum('taxable_amount'), 2);
+            $taxAmount = round((float) $taxLines->sum('tax_amount'), 2);
+            $taxRate = (float) ($taxLines->first()['tax_rate'] ?? 0);
+
+            InvoiceTaxTotal::create([
+                'invoice_id' => $invoice->id,
+                'tax_amount' => $taxAmount,
+                'tax_subtotal' => [
+                    [
+                        'taxable_amount' => $taxableAmount,
+                        'tax_amount' => $taxAmount,
+                        'tax_percentage' => $taxRate,
+                        'tax_category' => $taxCode,
+                        'tax_category_id' => $this->tax_category_id,
+                    ],
+                ],
+            ]);
+        }
+    }
+
+    private function buildInvoiceMetadata(): array
+    {
+        return [
+            'allowance_charges' => $this->allowance_charges,
+            'withholding_tax_enabled' => (bool) $this->withholding_tax_enabled,
+            'withholding_tax_rate' => (float) $this->withholding_tax_rate,
+            'withholding_tax_amount' => (float) $this->withholding_tax_amount,
+        ];
     }
 
     /**

@@ -17,14 +17,27 @@
         showError: false,
         successMessage: '',
         errorMessage: '',
+        extractMessage(payload) {
+            if (typeof payload === 'string') return payload;
+    
+            if (Array.isArray(payload)) {
+                const first = payload[0];
+                if (typeof first === 'string') return first;
+                if (first && typeof first.message === 'string') return first.message;
+            }
+    
+            if (payload && typeof payload.message === 'string') return payload.message;
+    
+            return 'Operation completed.';
+        },
         init() {
-            Livewire.on('success', (message) => {
-                this.successMessage = message;
+            Livewire.on('success', (payload) => {
+                this.successMessage = this.extractMessage(payload);
                 this.showSuccess = true;
                 setTimeout(() => this.showSuccess = false, 5000);
             });
-            Livewire.on('error', (message) => {
-                this.errorMessage = message;
+            Livewire.on('error', (payload) => {
+                this.errorMessage = this.extractMessage(payload);
                 this.showError = true;
                 setTimeout(() => this.showError = false, 5000);
             });
@@ -276,7 +289,7 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse ($invoices as $invoice)
-                        <tr class="hover:bg-gray-50 transition-colors">
+                        <tr wire:key="invoice-row-{{ $invoice->id }}" class="hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ $invoice->invoice_reference }}</div>
                             </td>
@@ -423,7 +436,8 @@
 
     <!-- Cancellation Confirmation Modals -->
     @foreach ($invoices as $invoice)
-        <flux:modal name="confirm-invoice-cancellation-{{ $invoice->id }}" class="max-w-lg">
+        <flux:modal wire:key="cancel-modal-{{ $invoice->id }}"
+            name="confirm-invoice-cancellation-{{ $invoice->id }}" class="max-w-lg">
             <div class="space-y-6">
                 <div class="text-center">
                     <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
@@ -438,7 +452,7 @@
                         This action will mark the invoice as cancelled and it will no longer be visible in the active
                         invoice list.
                     </p>
-                    @if ($invoice->irn)
+                    @if (in_array($invoice->transmit, ['TRANSMITTING', 'TRANSMITTED', 'FAILED']))
                         <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                             <div class="flex">
                                 <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
@@ -449,7 +463,7 @@
                                 <div class="ml-3">
                                     <p class="text-sm text-yellow-700">
                                         <strong>Note:</strong> This invoice has been transmitted to Taxly (IRN:
-                                        {{ $invoice->irn }}).
+                                        {{ $invoice->irn ?? 'N/A' }}).
                                         Cancelling it here will not affect the transmission status.
                                     </p>
                                 </div>
@@ -465,10 +479,12 @@
                         </flux:button>
                     </flux:modal.close>
 
-                    <flux:button variant="danger" wire:click="deleteInvoice({{ $invoice->id }})"
-                        class="!cursor-pointer">
-                        {{ __('Yes, cancel invoice') }}
-                    </flux:button>
+                    <flux:modal.close>
+                        <flux:button variant="danger" wire:click="deleteInvoice({{ $invoice->id }})"
+                            class="!cursor-pointer">
+                            {{ __('Yes, cancel invoice') }}
+                        </flux:button>
+                    </flux:modal.close>
                 </div>
             </div>
         </flux:modal>

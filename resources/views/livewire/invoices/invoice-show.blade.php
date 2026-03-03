@@ -333,6 +333,13 @@
                     </thead>
                     <tbody>
                         @forelse ($invoice->lines as $item)
+                            @php
+                                $lineQty = (float) ($item->invoiced_quantity ?? ($item->quantity ?? 0));
+                                $linePrice = (float) ($item->price['price_amount'] ?? 0);
+                                $lineTotal = isset($item->line_extension_amount)
+                                    ? (float) $item->line_extension_amount
+                                    : $lineQty * $linePrice;
+                            @endphp
                             <tr
                                 class="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
                                 <td class="p-3">
@@ -347,7 +354,7 @@
                                 <td class="p-3 text-zinc-600 dark:text-zinc-400">{{ $item->product_category ?? '-' }}
                                 </td>
                                 <td class="p-3 text-right text-zinc-900 dark:text-zinc-100">
-                                    {{ number_format($item->invoiced_quantity ?? $item->quantity, 2) }}</td>
+                                    {{ number_format($lineQty, 2) }}</td>
                                 <td class="p-3 text-right text-zinc-900 dark:text-zinc-100">
                                     @php
                                         $currency = $invoice->document_currency_code;
@@ -361,10 +368,11 @@
                                             default => $currency . ' ',
                                         };
                                     @endphp
-                                    {{ $currencySymbol }}{{ number_format($item->price['price_amount'] ?? 0, 2) }}
+                                    {{ $currencySymbol }}{{ number_format($linePrice, 2) }}
                                 </td>
                                 <td class="p-3 text-right font-semibold text-zinc-900 dark:text-zinc-100">
-                                    {{ $currencySymbol }}{{ number_format($item->line_total ?? 0, 2) }}
+                                    {{-- {{ $currencySymbol }}{{ number_format($lineAmount, 2) }} --}}
+                                    {{ $currencySymbol }}{{ number_format($lineTotal, 2) }}
                                 </td>
                             </tr>
                         @empty
@@ -532,9 +540,24 @@
                         'GHS' => 'GH₵',
                         default => $currency . ' ',
                     };
+                    $metadata = is_array($invoice->metadata) ? $invoice->metadata : [];
+                    $allowanceCharges = is_array($metadata['allowance_charges'] ?? null)
+                        ? $metadata['allowance_charges']
+                        : [];
+                    $withholdingEnabled = (bool) ($metadata['withholding_tax_enabled'] ?? false);
+                    $withholdingRate = (float) ($metadata['withholding_tax_rate'] ?? 0);
+                    $calculatedLineExtension = $invoice->lines->sum(function ($line) {
+                        $qty = (float) ($line->invoiced_quantity ?? ($line->quantity ?? 0));
+                        $price = (float) ($line->price['price_amount'] ?? 0);
+
+                        return isset($line->line_extension_amount)
+                            ? (float) $line->line_extension_amount
+                            : $qty * $price;
+                    });
+                    $withholdingAmount = (float) ($metadata['withholding_tax_amount'] ?? 0);
                     $lineExtension = isset($invoice->legal_monetary_total['line_extension_amount'])
-                        ? $invoice->legal_monetary_total['line_extension_amount']
-                        : $invoice->lines->sum('line_total');
+                        ? (float) $invoice->legal_monetary_total['line_extension_amount']
+                        : $calculatedLineExtension;
                     $taxExclusive = isset($invoice->legal_monetary_total['tax_exclusive_amount'])
                         ? $invoice->legal_monetary_total['tax_exclusive_amount']
                         : $lineExtension;
@@ -559,6 +582,41 @@
                         <span
                             class="text-zinc-900 dark:text-zinc-100">{{ $currencySymbol }}{{ number_format($taxAmount, 2) }}</span>
                     </div>
+
+                    @if (count($allowanceCharges) > 0)
+                        @foreach ($allowanceCharges as $charge)
+                            @php
+                                $chargeAmount = (float) ($charge['amount'] ?? 0);
+                                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                                    $chargeAmount = round($lineExtension * ($chargeAmount / 100), 2);
+                                }
+                            @endphp
+                            <div class="flex justify-between">
+                                <span class="text-zinc-600 dark:text-zinc-400">
+                                    {{ $charge['reason'] ?? ($charge['charge_indicator'] ? 'Charge' : 'Discount') }}
+                                    @if (($charge['amount_type'] ?? 'fixed') === 'percent')
+                                        ({{ $charge['amount'] ?? 0 }}%)
+                                    @endif
+                                    :
+                                </span>
+                                <span class="text-zinc-900 dark:text-zinc-100">
+                                    @if (!($charge['charge_indicator'] ?? false))
+                                        -
+                                    @endif
+                                    {{ $currencySymbol }}{{ number_format($chargeAmount, 2) }}
+                                </span>
+                            </div>
+                        @endforeach
+                    @endif
+
+                    @if ($withholdingEnabled)
+                        <div class="flex justify-between">
+                            <span class="text-zinc-600 dark:text-zinc-400">Withholding Tax
+                                ({{ $withholdingRate }}%):</span>
+                            <span
+                                class="text-red-600 dark:text-red-400">-{{ $currencySymbol }}{{ number_format($withholdingAmount, 2) }}</span>
+                        </div>
+                    @endif
                     <div class="border-t border-zinc-200 dark:border-zinc-700 pt-2">
                         <div class="flex justify-between text-base font-bold">
                             <span class="text-zinc-800 dark:text-zinc-200">Grand Total:</span>
@@ -655,6 +713,28 @@
                             d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
                     Print Invoice
+                </button>
+
+                <button wire:click="downloadInvoice" wire:loading.attr="disabled"
+                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span wire:loading.remove wire:target="downloadInvoice" class="inline-flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 7H7a2 2 0 01-2-2v-3m14 3a2 2 0 002-2v-3" />
+                        </svg>
+                        Download Invoice
+                    </span>
+                    <span wire:loading wire:target="downloadInvoice" class="inline-flex items-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg"
+                            fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        Generating PDF...
+                    </span>
                 </button>
 
                 @if ($invoice->transmit)

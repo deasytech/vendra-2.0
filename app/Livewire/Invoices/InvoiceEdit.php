@@ -4,6 +4,7 @@ namespace App\Livewire\Invoices;
 
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\InvoiceTaxTotal;
 use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\Setting;
@@ -194,6 +195,24 @@ class InvoiceEdit extends Component
 
         // Load monetary totals
         $this->legal_monetary_total = $this->invoice->legal_monetary_total ?? [];
+
+        // Load allowance/discount and withholding tax data persisted during create
+        $metadata = is_array($this->invoice->metadata) ? $this->invoice->metadata : [];
+        $this->allowance_charges = is_array($metadata['allowance_charges'] ?? null)
+            ? $metadata['allowance_charges']
+            : [];
+
+        if (array_key_exists('withholding_tax_enabled', $metadata)) {
+            $this->withholding_tax_enabled = (bool) $metadata['withholding_tax_enabled'];
+        }
+
+        if (array_key_exists('withholding_tax_rate', $metadata)) {
+            $this->withholding_tax_rate = (float) $metadata['withholding_tax_rate'];
+        }
+
+        if (array_key_exists('withholding_tax_amount', $metadata)) {
+            $this->withholding_tax_amount = (float) $metadata['withholding_tax_amount'];
+        }
     }
 
     /**
@@ -559,6 +578,7 @@ class InvoiceEdit extends Component
                 'accounting_supplier_party' => $this->supplier,
                 'accounting_customer_party' => $this->customer,
                 'legal_monetary_total' => $this->legal_monetary_total,
+                'metadata' => $this->buildInvoiceMetadata(),
             ]);
 
             // Delete existing invoice lines and create new ones
@@ -587,6 +607,8 @@ class InvoiceEdit extends Component
 
                 InvoiceLine::create($lineData);
             }
+
+            $this->syncInvoiceTaxTotals($this->invoice);
 
             DB::commit();
 
@@ -789,6 +811,57 @@ class InvoiceEdit extends Component
                 'order' => $index,
             ];
         }, $this->invoice_lines, array_keys($this->invoice_lines));
+    }
+
+    private function syncInvoiceTaxTotals(Invoice $invoice): void
+    {
+        $invoice->taxTotals()->delete();
+
+        $groupedTax = collect($this->invoice_lines)
+            ->map(function ($line) {
+                $taxCode = $line['selected_tax'] ?? 'STANDARD_VAT';
+                $taxRate = (float) $this->getTaxRate($taxCode);
+                $lineExtension = (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0));
+                $lineTaxAmount = round($lineExtension * ($taxRate / 100), 2);
+
+                return [
+                    'tax_code' => $taxCode,
+                    'tax_rate' => $taxRate,
+                    'taxable_amount' => $lineExtension,
+                    'tax_amount' => $lineTaxAmount,
+                ];
+            })
+            ->groupBy('tax_code');
+
+        foreach ($groupedTax as $taxCode => $taxLines) {
+            $taxableAmount = round((float) $taxLines->sum('taxable_amount'), 2);
+            $taxAmount = round((float) $taxLines->sum('tax_amount'), 2);
+            $taxRate = (float) ($taxLines->first()['tax_rate'] ?? 0);
+
+            InvoiceTaxTotal::create([
+                'invoice_id' => $invoice->id,
+                'tax_amount' => $taxAmount,
+                'tax_subtotal' => [
+                    [
+                        'taxable_amount' => $taxableAmount,
+                        'tax_amount' => $taxAmount,
+                        'tax_percentage' => $taxRate,
+                        'tax_category' => $taxCode,
+                        'tax_category_id' => $this->tax_category_id,
+                    ],
+                ],
+            ]);
+        }
+    }
+
+    private function buildInvoiceMetadata(): array
+    {
+        return [
+            'allowance_charges' => $this->allowance_charges,
+            'withholding_tax_enabled' => (bool) $this->withholding_tax_enabled,
+            'withholding_tax_rate' => (float) $this->withholding_tax_rate,
+            'withholding_tax_amount' => (float) $this->withholding_tax_amount,
+        ];
     }
 
     public function extractReadableFirsError(Throwable $e)

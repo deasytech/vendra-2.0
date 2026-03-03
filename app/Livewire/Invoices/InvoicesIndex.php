@@ -545,15 +545,15 @@ class InvoicesIndex extends Component
     public function deleteInvoice($invoiceId)
     {
         try {
-            DB::beginTransaction();
-
             $invoice = Invoice::findOrFail($invoiceId);
 
             // Check if invoice can be deleted
-            if ($invoice->irn) {
+            if (in_array($invoice->transmit, ['TRANSMITTING', 'TRANSMITTED', 'FAILED'], true)) {
                 $this->dispatch('error', message: 'Cannot delete an invoice that has been transmitted to Taxly.');
                 return;
             }
+
+            DB::beginTransaction();
 
             // Delete related data
             $invoice->lines()->delete();
@@ -562,9 +562,8 @@ class InvoicesIndex extends Component
 
             DB::commit();
 
-            // Close the modal and show success message
-            $this->dispatch('close-modal', 'confirm-invoice-cancellation-' . $invoiceId);
-            $this->dispatch('success', message: 'Invoice cancelled successfully.');
+            // Show success message as plain payload to ensure toast renders text
+            $this->dispatch('success', 'Invoice cancelled successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Invoice deletion failed', ['invoice_id' => $invoiceId, 'error' => $e->getMessage()]);

@@ -7,11 +7,13 @@ use App\Models\TaxlyCredential;
 use App\Services\FirsQrService;
 use App\Services\TaxlyInvoicePayloadBuilder;
 use App\Services\TaxlyService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\Image\ImagickImageBackEnd;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class InvoiceShow extends Component
@@ -177,6 +179,33 @@ class InvoiceShow extends Component
 
             $this->dispatch('error', message: 'Failed to initiate invoice transmission: ' . $e->getMessage());
             $this->isTransmitting = false;
+        }
+    }
+
+    public function downloadInvoice()
+    {
+        try {
+            $invoice = Invoice::with(['lines', 'organization', 'customer', 'taxTotals'])
+                ->findOrFail($this->invoiceId);
+
+            $filename = 'invoice-' . Str::slug($invoice->invoice_reference ?: ('ref-' . $invoice->id)) . '.pdf';
+
+            $pdf = Pdf::loadView('pdf.invoice', [
+                'invoice' => $invoice,
+            ])->setPaper('a4', 'portrait');
+
+            return response()->streamDownload(function () use ($pdf) {
+                echo $pdf->output();
+            }, $filename, [
+                'Content-Type' => 'application/pdf',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Invoice PDF download failed', [
+                'invoice_id' => $this->invoiceId,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->dispatch('error', 'Failed to download invoice PDF: ' . $e->getMessage());
         }
     }
 
