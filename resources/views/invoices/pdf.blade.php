@@ -682,10 +682,10 @@
                     <span class="text-muted">Subtotal:</span>
                     <span>{{ $currencySymbol }}{{ number_format($lineExtension, 2) }}</span>
                 </div>
-                <div class="summary-row">
+                {{-- <div class="summary-row">
                     <span class="text-muted">Tax Exclusive:</span>
                     <span>{{ $currencySymbol }}{{ number_format($lineExtension, 2) }}</span>
-                </div>
+                </div> --}}
                 <div class="summary-row">
                     <span class="text-muted">Tax Amount:</span>
                     <span>{{ $currencySymbol }}{{ number_format($taxAmount, 2) }}</span>

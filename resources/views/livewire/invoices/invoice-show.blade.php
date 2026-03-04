@@ -585,11 +585,11 @@
                         <span
                             class="text-zinc-900 dark:text-zinc-100">{{ $currencySymbol }}{{ number_format($lineExtension, 2) }}</span>
                     </div>
-                    <div class="flex justify-between">
+                    {{-- <div class="flex justify-between">
                         <span class="text-zinc-600 dark:text-zinc-400">Tax Exclusive:</span>
                         <span
                             class="text-zinc-900 dark:text-zinc-100">{{ $currencySymbol }}{{ number_format($taxExclusive, 2) }}</span>
-                    </div>
+                    </div> --}}
                     <div class="flex justify-between">
                         <span class="text-zinc-600 dark:text-zinc-400">Tax Amount:</span>
                         <span

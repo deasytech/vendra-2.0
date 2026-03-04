@@ -319,10 +319,6 @@
                 <td class="text-right">{{ $currencySymbol }}{{ number_format($lineSubtotal, 2) }}</td>
             </tr>
             <tr>
-                <td class="muted">Tax Exclusive</td>
-                <td class="text-right">{{ $currencySymbol }}{{ number_format($taxExclusive, 2) }}</td>
-            </tr>
-            <tr>
                 <td class="muted">Tax Amount</td>
                 <td class="text-right">{{ $currencySymbol }}{{ number_format($taxAmount, 2) }}</td>
             </tr>
@@ -361,10 +357,6 @@
                 </tr>
             @endif
 
-            <tr>
-                <td class="muted">Tax Inclusive</td>
-                <td class="text-right">{{ $currencySymbol }}{{ number_format($grandTotal, 2) }}</td>
-            </tr>
             <tr class="grand-total">
                 <td>Grand Total</td>
                 <td class="text-right">{{ $currencySymbol }}{{ number_format($grandTotal, 2) }}</td>
