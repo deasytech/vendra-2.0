@@ -291,7 +291,7 @@
         <table class="items-table" style="background: #f9fafb;">
             <tr>
                 <td style="width: 50%; vertical-align: top; border: none;">
-                    <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">FIRS Invoice Reference Number
+                    <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">NRS Invoice Reference Number
                         (IRN)</div>
                     <div
                         style="font-family: 'Courier New', monospace; font-size: 11px; color: #111827; word-break: break-all;">
@@ -300,8 +300,8 @@
                 </td>
                 @if ($qrDataUri)
                     <td style="width: 50%; text-align: right; border: none;">
-                        <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">FIRS QR Code</div>
-                        <img src="{{ $qrDataUri }}" alt="FIRS QR Code"
+                        <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">NRS QR Code</div>
+                        <img src="{{ $qrDataUri }}" alt="NRS QR Code"
                             style="max-width: 120px; height: auto; border: 1px solid #e5e7eb; padding: 4px; background: white;">
                         <div style="font-size: 9px; color: #6b7280; margin-top: 4px;">Scan to verify authenticity</div>
                     </td>
