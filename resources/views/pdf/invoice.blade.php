@@ -137,16 +137,39 @@
             return $qty * $price;
         });
 
-        $taxAmount = (float) $invoice->taxTotals->sum('tax_amount');
-        $taxExclusive = (float) ($invoice->legal_monetary_total['tax_exclusive_amount'] ?? $lineSubtotal);
-        $grandTotal = (float) ($invoice->legal_monetary_total['tax_inclusive_amount'] ?? $taxExclusive + $taxAmount);
-
         // Metadata for withholding tax and allowances
         $metadata = is_array($invoice->metadata) ? $invoice->metadata : [];
         $allowanceCharges = is_array($metadata['allowance_charges'] ?? null) ? $metadata['allowance_charges'] : [];
         $withholdingEnabled = (bool) ($metadata['withholding_tax_enabled'] ?? false);
         $withholdingRate = (float) ($metadata['withholding_tax_rate'] ?? 0);
         $withholdingAmount = (float) ($metadata['withholding_tax_amount'] ?? 0);
+
+        // Calculate allowances/charges total
+        $allowanceTotal = 0;
+        foreach ($allowanceCharges as $charge) {
+            $chargeAmount = (float) ($charge['amount'] ?? 0);
+            if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                $chargeAmount = round($lineSubtotal * ($chargeAmount / 100), 2);
+            }
+            // charge_indicator = true means charge (add), false means discount (subtract)
+            if (!empty($charge['charge_indicator'])) {
+                $allowanceTotal += $chargeAmount;
+            } else {
+                $allowanceTotal -= $chargeAmount;
+            }
+        }
+
+        // Taxable amount = subtotal + allowances/charges
+        $taxableAmount = $lineSubtotal + $allowanceTotal;
+        if ($taxableAmount < 0) {
+            $taxableAmount = 0;
+        }
+
+        // Tax amount
+        $taxAmount = (float) $invoice->taxTotals->sum('tax_amount');
+
+        // Grand Total = taxable amount + tax - withholding tax
+        $grandTotal = $taxableAmount + $taxAmount - $withholdingAmount;
     @endphp
 
     <table class="header-table">
@@ -285,84 +308,78 @@
         </table>
     @endif
 
-    {{-- IRN and QR Code Section --}}
-    @if ($irn)
-        <div class="spacer-16"></div>
-        <table class="items-table" style="background: #f9fafb;">
-            <tr>
-                <td style="width: 50%; vertical-align: top; border: none;">
-                    <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">NRS Invoice Reference Number
-                        (IRN)</div>
-                    <div
-                        style="font-family: 'Courier New', monospace; font-size: 11px; color: #111827; word-break: break-all;">
-                        {{ $irn }}
-                    </div>
-                </td>
-                @if ($qrDataUri)
-                    <td style="width: 50%; text-align: right; border: none;">
-                        <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">NRS QR Code</div>
-                        <img src="{{ $qrDataUri }}" alt="NRS QR Code"
-                            style="max-width: 120px; height: auto; border: 1px solid #e5e7eb; padding: 4px; background: white;">
-                        <div style="font-size: 9px; color: #6b7280; margin-top: 4px;">Scan to verify authenticity</div>
-                    </td>
-                @endif
-            </tr>
-        </table>
-    @endif
-
     <div class="spacer-16"></div>
 
-    <div class="totals-wrap">
-        <table class="totals-table">
-            <tr>
-                <td class="muted">Subtotal</td>
-                <td class="text-right">{{ $currencySymbol }}{{ number_format($lineSubtotal, 2) }}</td>
-            </tr>
-            <tr>
-                <td class="muted">Tax Amount</td>
-                <td class="text-right">{{ $currencySymbol }}{{ number_format($taxAmount, 2) }}</td>
-            </tr>
-
-            @if (count($allowanceCharges) > 0)
-                @foreach ($allowanceCharges as $charge)
-                    @php
-                        $chargeAmount = (float) ($charge['amount'] ?? 0);
-                        if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                            $chargeAmount = round($lineSubtotal * ($chargeAmount / 100), 2);
-                        }
-                    @endphp
-                    <tr>
-                        <td class="muted">
-                            {{ $charge['reason'] ?? ($charge['charge_indicator'] ? 'Charge' : 'Discount') }}
-                            @if (($charge['amount_type'] ?? 'fixed') === 'percent')
-                                ({{ $charge['amount'] ?? 0 }}%)
-                            @endif
-                        </td>
-                        <td class="text-right"
-                            style="color: {{ !($charge['charge_indicator'] ?? false) ? '#dc2626' : 'inherit' }}">
-                            @if (!($charge['charge_indicator'] ?? false))
-                                -
-                            @endif
-                            {{ $currencySymbol }}{{ number_format($chargeAmount, 2) }}
-                        </td>
-                    </tr>
-                @endforeach
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            {{-- QR Code on the left --}}
+            @if ($qrDataUri)
+                <td style="width: 50%; vertical-align: top; padding-right: 20px;">
+                    <div style="font-weight: 700; color: #374151; margin-bottom: 4px;">NRS QR Code</div>
+                    <img src="{{ $qrDataUri }}" alt="NRS QR Code"
+                        style="max-width: 120px; height: auto; border: 1px solid #e5e7eb; padding: 4px; background: white;">
+                    <div style="font-size: 9px; color: #6b7280; margin-top: 4px;">Scan to verify authenticity</div>
+                </td>
+            @else
+                <td style="width: 50%;"></td>
             @endif
 
-            @if ($withholdingEnabled)
-                <tr>
-                    <td class="muted">Withholding Tax ({{ $withholdingRate }}%)</td>
-                    <td class="text-right" style="color: #dc2626;">
-                        -{{ $currencySymbol }}{{ number_format($withholdingAmount, 2) }}</td>
-                </tr>
-            @endif
+            {{-- Totals on the right --}}
+            <td style="width: 50%; vertical-align: top;">
+                <div class="totals-wrap" style="margin-left: auto;">
+                    <table class="totals-table">
+                        <tr>
+                            <td class="muted">Subtotal</td>
+                            <td class="text-right">{{ $currencySymbol }}{{ number_format($lineSubtotal, 2) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="muted">Tax Amount</td>
+                            <td class="text-right">{{ $currencySymbol }}{{ number_format($taxAmount, 2) }}</td>
+                        </tr>
 
-            <tr class="grand-total">
-                <td>Grand Total</td>
-                <td class="text-right">{{ $currencySymbol }}{{ number_format($grandTotal, 2) }}</td>
-            </tr>
-        </table>
-    </div>
+                        @if (count($allowanceCharges) > 0)
+                            @foreach ($allowanceCharges as $charge)
+                                @php
+                                    $chargeAmount = (float) ($charge['amount'] ?? 0);
+                                    if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                                        $chargeAmount = round($lineSubtotal * ($chargeAmount / 100), 2);
+                                    }
+                                @endphp
+                                <tr>
+                                    <td class="muted">
+                                        {{ $charge['reason'] ?? ($charge['charge_indicator'] ? 'Charge' : 'Discount') }}
+                                        @if (($charge['amount_type'] ?? 'fixed') === 'percent')
+                                            ({{ $charge['amount'] ?? 0 }}%)
+                                        @endif
+                                    </td>
+                                    <td class="text-right"
+                                        style="color: {{ !($charge['charge_indicator'] ?? false) ? '#dc2626' : 'inherit' }}">
+                                        @if (!($charge['charge_indicator'] ?? false))
+                                            -
+                                        @endif
+                                        {{ $currencySymbol }}{{ number_format($chargeAmount, 2) }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endif
+
+                        @if ($withholdingEnabled)
+                            <tr>
+                                <td class="muted">Withholding Tax ({{ $withholdingRate }}%)</td>
+                                <td class="text-right" style="color: #dc2626;">
+                                    -{{ $currencySymbol }}{{ number_format($withholdingAmount, 2) }}</td>
+                            </tr>
+                        @endif
+
+                        <tr class="grand-total">
+                            <td>Grand Total</td>
+                            <td class="text-right">{{ $currencySymbol }}{{ number_format($grandTotal, 2) }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
 
     <div class="footer">
         Generated by {{ $projectName }} on {{ now()->format('d M, Y H:i') }}

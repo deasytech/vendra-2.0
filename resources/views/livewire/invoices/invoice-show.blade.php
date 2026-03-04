@@ -554,7 +554,10 @@
                         : [];
                     $withholdingEnabled = (bool) ($metadata['withholding_tax_enabled'] ?? false);
                     $withholdingRate = (float) ($metadata['withholding_tax_rate'] ?? 0);
-                    $calculatedLineExtension = $invoice->lines->sum(function ($line) {
+                    $withholdingAmount = (float) ($metadata['withholding_tax_amount'] ?? 0);
+
+                    // Calculate subtotal from line items
+                    $lineExtension = $invoice->lines->sum(function ($line) {
                         $qty =
                             (float) ($line->invoiced_quantity ?? ($line->quantity ?? ($line->item['quantity'] ?? 0)));
                         $price =
@@ -567,17 +570,33 @@
                             ? (float) $line->line_extension_amount
                             : $lineTotal;
                     });
-                    $withholdingAmount = (float) ($metadata['withholding_tax_amount'] ?? 0);
-                    $lineExtension = isset($invoice->legal_monetary_total['line_extension_amount'])
-                        ? (float) $invoice->legal_monetary_total['line_extension_amount']
-                        : $calculatedLineExtension;
-                    $taxExclusive = isset($invoice->legal_monetary_total['tax_exclusive_amount'])
-                        ? $invoice->legal_monetary_total['tax_exclusive_amount']
-                        : $lineExtension;
+
+                    // Calculate allowances/charges total
+                    $allowanceTotal = 0;
+                    foreach ($allowanceCharges as $charge) {
+                        $chargeAmount = (float) ($charge['amount'] ?? 0);
+                        if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                            $chargeAmount = round($lineExtension * ($chargeAmount / 100), 2);
+                        }
+                        // charge_indicator = true means charge (add), false means discount (subtract)
+                        if (!empty($charge['charge_indicator'])) {
+                            $allowanceTotal += $chargeAmount;
+                        } else {
+                            $allowanceTotal -= $chargeAmount;
+                        }
+                    }
+
+                    // Taxable amount = subtotal + allowances/charges
+                    $taxableAmount = $lineExtension + $allowanceTotal;
+                    if ($taxableAmount < 0) {
+                        $taxableAmount = 0;
+                    }
+
+                    // Tax amount
                     $taxAmount = $invoice->taxTotals->sum('tax_amount');
-                    $taxInclusive = isset($invoice->legal_monetary_total['tax_inclusive_amount'])
-                        ? $invoice->legal_monetary_total['tax_inclusive_amount']
-                        : $taxExclusive + $taxAmount;
+
+                    // Grand Total = taxable amount + tax - withholding tax
+                    $grandTotal = $taxableAmount + $taxAmount - $withholdingAmount;
                 @endphp
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
@@ -585,11 +604,6 @@
                         <span
                             class="text-zinc-900 dark:text-zinc-100">{{ $currencySymbol }}{{ number_format($lineExtension, 2) }}</span>
                     </div>
-                    {{-- <div class="flex justify-between">
-                        <span class="text-zinc-600 dark:text-zinc-400">Tax Exclusive:</span>
-                        <span
-                            class="text-zinc-900 dark:text-zinc-100">{{ $currencySymbol }}{{ number_format($taxExclusive, 2) }}</span>
-                    </div> --}}
                     <div class="flex justify-between">
                         <span class="text-zinc-600 dark:text-zinc-400">Tax Amount:</span>
                         <span
@@ -634,7 +648,7 @@
                         <div class="flex justify-between text-base font-bold">
                             <span class="text-zinc-800 dark:text-zinc-200">Grand Total:</span>
                             <span
-                                class="text-zinc-900 dark:text-zinc-100">{{ $currencySymbol }}{{ number_format($taxInclusive, 2) }}</span>
+                                class="text-zinc-900 dark:text-zinc-100">{{ $currencySymbol }}{{ number_format($grandTotal, 2) }}</span>
                         </div>
                     </div>
                 </div>

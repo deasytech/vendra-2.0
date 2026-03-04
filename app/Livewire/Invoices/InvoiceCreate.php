@@ -860,13 +860,14 @@ class InvoiceCreate extends Component
     {
         return array_map(function ($line, $index) {
             return [
-                'hsn_code' => $line['hsn_code'] ?? $this->hsn_code,
+                'hsn_code' => $line['hsn_code'] ?? $this->generateHsnCode(),
                 'product_category' => $line['product_category'] ?? 'General Items',
                 'invoiced_quantity' => (float) ($line['invoiced_quantity'] ?? 0),
                 'line_extension_amount' => (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)),
                 'item' => [
                     'name' => $line['item']['name'] ?? '',
                     'description' => $line['item']['description'] ?? '',
+                    'selected_tax' => $line['selected_tax'] ?? 'STANDARD_VAT',
                 ],
                 'price' => [
                     'price_amount' => (float) ($line['price']['price_amount'] ?? 0),

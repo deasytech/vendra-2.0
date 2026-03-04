@@ -152,7 +152,53 @@ class InvoiceEdit extends Component
 
         // Load invoice lines
         $this->invoice_lines = [];
+
+        // Build a map of tax codes from taxTotals for lookup
+        $taxCodeMap = [];
+        foreach ($this->invoice->taxTotals as $taxTotal) {
+            $taxSubtotals = $taxTotal->tax_subtotal ?? [];
+            foreach ($taxSubtotals as $subtotal) {
+                $taxCategory = $subtotal['tax_category'] ?? null;
+                $taxPercentage = $subtotal['tax_percentage'] ?? null;
+                if ($taxCategory && $taxPercentage !== null) {
+                    // Map percentage to tax code
+                    $taxCodeMap[(float) $taxPercentage] = $taxCategory;
+                }
+            }
+        }
+
         foreach ($this->invoice->lines as $line) {
+            // Determine the tax code for this line
+            // First check if it's stored in the line's item data
+            $selectedTax = $line->item['selected_tax'] ?? null;
+
+            // If not found, try to match by calculating the line total and comparing with tax data
+            if (!$selectedTax) {
+                $lineTotal = ((float) ($line->price['price_amount'] ?? 0)) * ((float) ($line->invoiced_quantity ?? 1));
+
+                // Find matching tax by percentage
+                foreach ($taxCodeMap as $percentage => $taxCode) {
+                    $expectedTax = round($lineTotal * ($percentage / 100), 2);
+                    // Check if this line's tax amount matches any recorded tax
+                    if (abs($expectedTax - 0) < 0.01 && $percentage == 0) {
+                        $selectedTax = $taxCode;
+                        break;
+                    }
+                }
+
+                // Default to STANDARD_VAT if zero tax not found but should be ZERO_VAT/ZERO_GST
+                if (!$selectedTax) {
+                    // Check if line has zero tax by looking at the taxTotals
+                    $lineTaxAmount = $this->getLineTaxAmountFromTaxTotals($line);
+                    if ($lineTaxAmount == 0) {
+                        // Could be ZERO_VAT or ZERO_GST - default to ZERO_VAT
+                        $selectedTax = 'ZERO_VAT';
+                    } else {
+                        $selectedTax = 'STANDARD_VAT';
+                    }
+                }
+            }
+
             $this->invoice_lines[] = [
                 'id' => $line->id,
                 'hsn_code' => $line->hsn_code ?? $this->generateHsnCode(),
@@ -168,7 +214,7 @@ class InvoiceEdit extends Component
                     'description' => $line->item['description'] ?? $line->description ?? ''
                 ],
                 'order' => $line->order ?? 0,
-                'selected_tax' => 'STANDARD_VAT',
+                'selected_tax' => $selectedTax ?? 'STANDARD_VAT',
                 'tax_amount' => 0
             ];
         }
@@ -641,6 +687,29 @@ class InvoiceEdit extends Component
                 $this->tenant_id = $organization->tenant_id ?? Auth::user()->tenant_id ?? null;
             }
         }
+    }
+
+    /**
+     * Get the tax amount for a specific line from the tax totals
+     */
+    private function getLineTaxAmountFromTaxTotals($line): float
+    {
+        $lineTotal = ((float) ($line->price['price_amount'] ?? 0)) * ((float) ($line->invoiced_quantity ?? 1));
+
+        foreach ($this->invoice->taxTotals as $taxTotal) {
+            $taxSubtotals = $taxTotal->tax_subtotal ?? [];
+            foreach ($taxSubtotals as $subtotal) {
+                $taxableAmount = $subtotal['taxable_amount'] ?? 0;
+                $taxPercentage = $subtotal['tax_percentage'] ?? 0;
+
+                // If the line total matches the taxable amount (approximately)
+                if (abs($taxableAmount - $lineTotal) < 0.01) {
+                    return (float) ($subtotal['tax_amount'] ?? 0);
+                }
+            }
+        }
+
+        return 0;
     }
 
     /**
