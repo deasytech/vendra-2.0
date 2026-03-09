@@ -472,6 +472,7 @@ class InvoiceEdit extends Component
     protected function computeTotals()
     {
         $lineTotal = 0;
+        $totalVat = 0;
 
         foreach ($this->invoice_lines as $index => $line) {
             $price = (float) ($line['price']['price_amount'] ?? 0);
@@ -486,6 +487,9 @@ class InvoiceEdit extends Component
             $taxRate = $this->getTaxRate($selectedTax);
             $lineTaxAmount = round($lineExtension * ($taxRate / 100), 2);
             $this->invoice_lines[$index]['tax_amount'] = $lineTaxAmount;
+
+            // Accumulate total VAT based on actual line taxes
+            $totalVat += $lineTaxAmount;
         }
 
         $this->sub_total = round($lineTotal, 2);
@@ -511,7 +515,8 @@ class InvoiceEdit extends Component
             $taxable = 0;
         }
 
-        $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
+        // Use the accumulated VAT from lines instead of fixed rate
+        $this->vat_amount = round($totalVat, 2);
         $this->total_amount = round($taxable + $this->vat_amount, 2);
 
         // Apply withholding tax if enabled (on taxable amount only, excluding VAT)
