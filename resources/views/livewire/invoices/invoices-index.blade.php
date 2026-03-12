@@ -1,17 +1,4 @@
 <div class="max-w-7xl mx-auto p-6">
-    <!-- Toast Notifications -->
-    @if (session()->has('success'))
-        <div x-data="{ show: true }" x-init="setTimeout(() => show = false, 5000)" x-show="show" x-transition class="fixed top-4 right-4 z-50">
-            <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clip-rule="evenodd" />
-                </svg>
-                <span>{{ session('success') }}</span>
-            </div>
-        </div>
-    @endif
     <div x-data="{
         showSuccess: false,
         showError: false,
@@ -44,7 +31,7 @@
         }
     }">
         <!-- Success Toast -->
-        <div x-show="showSuccess" x-transition class="fixed top-4 right-4 z-50">
+        {{-- <div x-show="showSuccess" x-transition class="fixed top-4 right-4 z-50">
             <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd"
@@ -53,10 +40,10 @@
                 </svg>
                 <span x-text="successMessage"></span>
             </div>
-        </div>
+        </div> --}}
 
         <!-- Error Toast -->
-        <div x-show="showError" x-transition class="fixed top-4 right-4 z-50">
+        {{-- <div x-show="showError" x-transition class="fixed top-4 right-4 z-50">
             <div class="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd"
@@ -65,7 +52,7 @@
                 </svg>
                 <span x-text="errorMessage"></span>
             </div>
-        </div>
+        </div> --}}
     </div>
     <!-- Header -->
     <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 mb-6">
@@ -372,7 +359,7 @@
                                             <flux:menu.item icon="paper-airplane"
                                                 wire:click="submitToFIRS({{ $invoice->id }})"
                                                 wire:loading.attr="disabled">
-                                                {{ __('Submit to FIRS') }}
+                                                {{ __('Submit to NRS') }}
                                             </flux:menu.item>
                                         @elseif ($invoice->transmit === 'FAILED')
                                             <flux:menu.item icon="arrow-path"

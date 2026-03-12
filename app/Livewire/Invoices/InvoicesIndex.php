@@ -280,7 +280,7 @@ class InvoicesIndex extends Component
                 }
             }
 
-            $this->dispatch('error', message: 'Failed to initiate invoice transmission: ' . $e->getMessage());
+            $this->dispatch('error', 'Failed to initiate invoice transmission: ' . $e->getMessage());
         }
     }
 
@@ -375,7 +375,7 @@ class InvoicesIndex extends Component
                 }
             }
 
-            $this->dispatch('error', message: 'Failed to retry invoice transmission: ' . $e->getMessage());
+            $this->dispatch('error', 'Failed to retry invoice transmission: ' . $e->getMessage());
         }
     }
 
@@ -389,13 +389,28 @@ class InvoicesIndex extends Component
 
             // Only allow submission for DRAFT invoices
             if ($invoice->transmit !== 'DRAFT') {
-                $this->dispatch('error', message: 'Only draft invoices can be submitted to FIRS.');
+                $this->dispatch('error', 'Only draft invoices can be submitted to FIRS.');
                 return;
             }
 
             Log::info('Submitting draft invoice to FIRS', [
                 'invoice_id' => $invoice->id,
                 'invoice_reference' => $invoice->invoice_reference,
+            ]);
+
+            // Use legal_monetary_total as-is (numbers, not strings)
+            $legalMonetaryTotal = $invoice->legal_monetary_total ?? [];
+
+            // Ensure all values are numeric (float), not strings
+            $monetaryFields = ['tax_exclusive_amount', 'tax_inclusive_amount', 'line_extension_amount', 'payable_amount', 'charge_total_amount', 'allowance_total_amount', 'prepaid_amount'];
+            foreach ($monetaryFields as $field) {
+                $value = $legalMonetaryTotal[$field] ?? 0;
+                $legalMonetaryTotal[$field] = (float) $value;
+            }
+
+            Log::debug('Legal monetary total after conversion', [
+                'original' => $invoice->legal_monetary_total,
+                'converted' => $legalMonetaryTotal,
             ]);
 
             // Build payload for Taxly submission
@@ -412,8 +427,7 @@ class InvoicesIndex extends Component
                 'tax_currency_code' => $invoice->document_currency_code,
                 'payment_status' => $invoice->payment_status,
                 'accounting_supplier_party' => $invoice->accounting_supplier_party,
-                'accounting_customer_party' => $invoice->accounting_customer_party,
-                'legal_monetary_total' => $invoice->legal_monetary_total,
+                'legal_monetary_total' => $legalMonetaryTotal,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly($invoice->lines),
                 'payment_means' => [
                     [
@@ -421,8 +435,13 @@ class InvoicesIndex extends Component
                         'payment_due_date' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : now()->addDays(30)->format('Y-m-d'),
                     ],
                 ],
-                'tax_total' => $this->buildTaxTotal($invoice),
+                'tax_total' => $this->buildTaxTotal($invoice, $legalMonetaryTotal),
             ];
+
+            // Only include customer party if customer is selected
+            if ($invoice->customer_id || !empty($invoice->accounting_customer_party['party_name'])) {
+                $payload['accounting_customer_party'] = $invoice->accounting_customer_party;
+            }
 
             // Call Taxly service to submit to FIRS using Taxly tenant_id from settings
             $taxlyTenantId = Setting::getValue('taxly_tenant_id');
@@ -451,7 +470,7 @@ class InvoicesIndex extends Component
                 'status' => 'PENDING'
             ]);
 
-            $this->dispatch('success', message: 'Invoice submitted to FIRS successfully. Ready for transmission.');
+            $this->dispatch('success', 'Invoice submitted to FIRS successfully. Ready for transmission.');
         } catch (\Throwable $e) {
             Log::error('Draft invoice submission to FIRS failed', [
                 'invoice_id' => $invoiceId,
@@ -474,7 +493,7 @@ class InvoicesIndex extends Component
                 }
             }
 
-            $this->dispatch('error', message: 'Failed to submit invoice to FIRS: ' . $e->getMessage());
+            $this->dispatch('error', 'Failed to submit invoice to FIRS: ' . $e->getMessage());
         }
     }
 
@@ -488,12 +507,12 @@ class InvoicesIndex extends Component
                 'hsn_code' => $line->hsn_code ?? 'GENERAL',
                 'product_category' => $line->product_category ?? 'General Items',
                 'invoiced_quantity' => (float) ($line->invoiced_quantity ?? 0),
-                'line_extension_amount' => (float) ($line->line_extension_amount ?? 0),
+                'line_extension_amount' => (float) (($line->price['price_amount'] ?? 0) * ($line->invoiced_quantity ?? 0)),
                 'item' => $line->item ?? ['name' => 'Item', 'description' => 'Item description'],
-                'price' => $line->price ?? [
-                    'price_amount' => 0,
-                    'base_quantity' => 1,
-                    'price_unit' => 'NGN per 1',
+                'price' => [
+                    'price_amount' => (float) ($line->price['price_amount'] ?? 0),
+                    'base_quantity' => (float) ($line->price['base_quantity'] ?? 1),
+                    'price_unit' => $line->price['price_unit'] ?? 'NGN per 1',
                 ],
                 'order' => $index,
             ];
@@ -503,7 +522,7 @@ class InvoicesIndex extends Component
     /**
      * Build tax total from invoice data
      */
-    private function buildTaxTotal($invoice)
+    private function buildTaxTotal($invoice, $legalMonetaryTotal)
     {
         $taxTotals = [];
 
@@ -512,13 +531,13 @@ class InvoicesIndex extends Component
             foreach ($invoice->taxTotals as $taxTotal) {
                 $taxTotals[] = [
                     'tax_amount' => (float) ($taxTotal->tax_amount ?? 0),
-                    'tax_subtotal' => $taxTotal->tax_subtotal ?? [],
+                    'tax_subtotal' => $this->formatTaxSubtotal($taxTotal->tax_subtotal ?? []),
                 ];
             }
         } else {
             // Fallback to basic tax calculation
-            $payableAmount = $invoice->legal_monetary_total['payable_amount'] ?? 0;
-            $taxableAmount = $invoice->legal_monetary_total['tax_exclusive_amount'] ?? $payableAmount;
+            $payableAmount = (float) ($legalMonetaryTotal['payable_amount'] ?? 0);
+            $taxableAmount = (float) ($legalMonetaryTotal['tax_exclusive_amount'] ?? $payableAmount);
             $taxAmount = $payableAmount - $taxableAmount;
 
             $taxTotals[] = [
@@ -540,6 +559,34 @@ class InvoicesIndex extends Component
     }
 
     /**
+     * Format tax subtotal for Taxly API
+     */
+    private function formatTaxSubtotal($subtotals)
+    {
+        if (empty($subtotals)) {
+            return [];
+        }
+
+        $formatted = [];
+        foreach ($subtotals as $sub) {
+            // Map stored fields to API expected format
+            // Stored: tax_category_id (id), tax_percentage (percent)
+            // API expects: tax_category.id, tax_category.percent
+            $taxCategory = [
+                'id' => $sub['tax_category_id'] ?? 'LOCAL_SALES_TAX',
+                'percent' => (float) ($sub['tax_percentage'] ?? 7.5),
+            ];
+
+            $formatted[] = [
+                'taxable_amount' => (float) ($sub['taxable_amount'] ?? 0),
+                'tax_amount' => (float) ($sub['tax_amount'] ?? 0),
+                'tax_category' => $taxCategory,
+            ];
+        }
+        return $formatted;
+    }
+
+    /**
      * Delete invoice (Cancel)
      */
     public function deleteInvoice($invoiceId)
@@ -549,7 +596,7 @@ class InvoicesIndex extends Component
 
             // Check if invoice can be deleted
             if (in_array($invoice->transmit, ['TRANSMITTING', 'TRANSMITTED', 'FAILED'], true)) {
-                $this->dispatch('error', message: 'Cannot delete an invoice that has been transmitted to Taxly.');
+                $this->dispatch('error', 'Cannot delete an invoice that has been transmitted to Taxly.');
                 return;
             }
 
@@ -567,7 +614,7 @@ class InvoicesIndex extends Component
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Invoice deletion failed', ['invoice_id' => $invoiceId, 'error' => $e->getMessage()]);
-            $this->dispatch('error', message: 'Failed to cancel invoice: ' . $e->getMessage());
+            $this->dispatch('error', 'Failed to cancel invoice: ' . $e->getMessage());
         }
     }
 }

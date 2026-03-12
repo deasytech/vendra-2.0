@@ -21,12 +21,53 @@
         </div>
     @endif
 
+    <!-- Error Message -->
+    @if (session()->has('error'))
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <!-- Customer Form -->
     <div class="bg-white rounded-xl shadow-lg p-6">
         <form wire:submit.prevent="save">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Basic Information -->
+                <!-- Logo Section -->
                 <div class="md:col-span-2">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Customer Logo</h3>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Company Logo</label>
+                    <div class="flex items-center space-x-4">
+                        @if ($logo)
+                            <img src="{{ $logo->temporaryUrl() }}" alt="Logo Preview"
+                                class="h-24 w-24 rounded-lg object-cover border-2 border-purple-200">
+                        @else
+                            <div
+                                class="h-24 w-24 rounded-lg bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
+                                <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                        @endif
+
+                        <div class="flex-1">
+                            <input type="file" wire:model="logo" accept="image/*"
+                                class="w-full px-4 py-3 border text-gray-800 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all">
+                            <p class="text-sm text-gray-500 mt-1">Upload a square logo (recommended: 200x200px, max 2MB)
+                            </p>
+                        </div>
+                    </div>
+                    @error('logo')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Basic Information -->
+                <div class="md:col-span-2 border-t border-gray-200 pt-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h3>
                 </div>
 

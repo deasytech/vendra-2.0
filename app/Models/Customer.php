@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Scopes\TenantScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Customer extends Model
 {
@@ -25,6 +26,8 @@ class Customer extends Model
         'logo_path',
     ];
 
+    protected $appends = ['logo_url'];
+
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
@@ -38,6 +41,29 @@ class Customer extends Model
     protected static function booted()
     {
         static::addGlobalScope(new TenantScope);
+    }
+
+    /**
+     * Get the logo URL attribute
+     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        if ($this->logo_path) {
+            return Storage::disk('public')->url($this->logo_path);
+        }
+        return null;
+    }
+
+    /**
+     * Delete the logo file from storage
+     */
+    public function deleteLogo(): void
+    {
+        if ($this->logo_path) {
+            Storage::disk('public')->delete($this->logo_path);
+            $this->logo_path = null;
+            $this->save();
+        }
     }
 
     public function toPartyObject(): array

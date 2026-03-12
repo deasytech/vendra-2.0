@@ -132,7 +132,7 @@ class TaxlyInvoicePayloadBuilder
             'sellers_item_identification' => Arr::get($line->item, 'sellers_item_identification'),
           ],
           'price' => [
-            'price_amount' => Arr::get($line->price, 'price_amount'),
+            'price_amount' => (string) Arr::get($line->price, 'price_amount', 0),
             'base_quantity' => Arr::get($line->price, 'base_quantity', 1),
             'price_unit' => Arr::get($line->price, 'price_unit', 'NGN per 1'),
           ],
