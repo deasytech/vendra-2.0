@@ -129,10 +129,18 @@ class TaxlyIntegration extends Component
     ]);
 
     try {
+      $integratorTin = Auth::user()?->organization?->tin ?? $this->organization?->tin;
+
+      if (blank($integratorTin)) {
+        $this->errorMessage = 'Your organization TIN is required before registering as an integrator. Please update it in settings and try again.';
+        return;
+      }
+
       $taxlyService = new TaxlyService();
 
       $payload = [
         'name' => $this->integratorName,
+        'tin' => $integratorTin,
         'brand' => $this->integratorBrand,
         'domain' => $this->integratorDomain,
         'description' => $this->integratorDescription,
@@ -147,6 +155,7 @@ class TaxlyIntegration extends Component
         'payload' => $payload,
         'base_url' => config('services.taxly.base_url', 'https://dev.taxly.ng/api/v1'),
         'api_key_from_env' => substr(env('TAXLY_API_KEY', ''), 0, 20) . '...',
+        'organization_id' => $this->organization?->id,
       ]);
 
       $result = $taxlyService->registerIntegrator($payload);
