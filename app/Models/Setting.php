@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class Setting extends Model
 {
@@ -15,11 +16,32 @@ class Setting extends Model
     'type',
     'description',
     'metadata',
+    'tenant_id',
+    'organization_id',
+    'user_id',
   ];
 
   protected $casts = [
     'metadata' => 'array',
+    'tenant_id' => 'integer',
+    'organization_id' => 'integer',
+    'user_id' => 'integer',
   ];
+
+  public function tenant()
+  {
+    return $this->belongsTo(Tenant::class);
+  }
+
+  public function organization()
+  {
+    return $this->belongsTo(Organization::class);
+  }
+
+  public function user()
+  {
+    return $this->belongsTo(User::class);
+  }
 
   /**
    * Get setting value cast to appropriate type
@@ -41,7 +63,10 @@ class Setting extends Model
    */
   public function setTypedValue($value): void
   {
-    if (is_bool($value)) {
+    if ($value === null) {
+      $this->type = 'string';
+      $this->value = null;
+    } elseif (is_bool($value)) {
       $this->type = 'boolean';
       $this->value = $value ? '1' : '0';
     } elseif (is_int($value)) {
@@ -62,9 +87,54 @@ class Setting extends Model
   /**
    * Get a setting value by key
    */
-  public static function getValue(string $key, $default = null)
+  public static function getValue(string $key, $default = null, ?array $scope = null)
   {
-    $setting = self::where('key', $key)->first();
+    $scope = self::resolveScope($scope);
+
+    $setting = self::query()
+      ->where('key', $key)
+      ->where(function ($query) use ($scope) {
+        if ($scope['user_id']) {
+          $query->orWhere(function ($subQuery) use ($scope) {
+            $subQuery
+              ->where('user_id', $scope['user_id'])
+              ->where('organization_id', $scope['organization_id'])
+              ->where('tenant_id', $scope['tenant_id']);
+          });
+        }
+
+        if ($scope['organization_id']) {
+          $query->orWhere(function ($subQuery) use ($scope) {
+            $subQuery
+              ->whereNull('user_id')
+              ->where('organization_id', $scope['organization_id'])
+              ->where('tenant_id', $scope['tenant_id']);
+          });
+        }
+
+        if ($scope['tenant_id']) {
+          $query->orWhere(function ($subQuery) use ($scope) {
+            $subQuery
+              ->whereNull('user_id')
+              ->whereNull('organization_id')
+              ->where('tenant_id', $scope['tenant_id']);
+          });
+        }
+
+        $query->orWhere(function ($subQuery) {
+          $subQuery
+            ->whereNull('user_id')
+            ->whereNull('organization_id')
+            ->whereNull('tenant_id');
+        });
+      })
+      ->orderByRaw('CASE
+          WHEN user_id IS NOT NULL THEN 1
+          WHEN organization_id IS NOT NULL THEN 2
+          WHEN tenant_id IS NOT NULL THEN 3
+          ELSE 4
+      END')
+      ->first();
 
     if (!$setting) {
       return $default;
@@ -76,9 +146,17 @@ class Setting extends Model
   /**
    * Set a setting value by key
    */
-  public static function setValue(string $key, $value, string $description = null): self
+  public static function setValue(string $key, $value, string $description = null, ?array $scope = null): self
   {
-    $setting = self::firstOrNew(['key' => $key]);
+    $scope = self::resolveScope($scope);
+
+    $setting = self::firstOrNew([
+      'key' => $key,
+      'tenant_id' => $scope['tenant_id'],
+      'organization_id' => $scope['organization_id'],
+      'user_id' => $scope['user_id'],
+    ]);
+
     $setting->setTypedValue($value);
 
     if ($description !== null) {
@@ -93,29 +171,36 @@ class Setting extends Model
   /**
    * Check if a setting exists
    */
-  public static function has(string $key): bool
+  public static function has(string $key, ?array $scope = null): bool
   {
-    return self::where('key', $key)->exists();
+    return self::getSettingRecord($key, $scope) !== null;
   }
 
   /**
    * Delete a setting by key
    */
-  public static function deleteValue(string $key): bool
+  public static function deleteValue(string $key, ?array $scope = null): bool
   {
-    return self::where('key', $key)->delete() > 0;
+    $scope = self::resolveScope($scope);
+
+    return self::query()
+      ->where('key', $key)
+      ->where('tenant_id', $scope['tenant_id'])
+      ->where('organization_id', $scope['organization_id'])
+      ->where('user_id', $scope['user_id'])
+      ->delete() > 0;
   }
 
   /**
    * Get all settings as key-value array
    */
-  public static function getAllSettings(): array
+  public static function getAllSettings(?array $scope = null): array
   {
-    $settings = self::all();
+    $keys = self::query()->distinct()->pluck('key');
     $result = [];
 
-    foreach ($settings as $setting) {
-      $result[$setting->key] = $setting->getTypedValue();
+    foreach ($keys as $key) {
+      $result[$key] = self::getValue($key, null, $scope);
     }
 
     return $result;
@@ -124,16 +209,16 @@ class Setting extends Model
   /**
    * Get project settings
    */
-  public static function getProjectSettings(): array
+  public static function getProjectSettings(?array $scope = null): array
   {
     return [
-      'project_name' => self::getValue('project_name', 'Vendra Invoice System'),
-      'project_logo' => self::getValue('project_logo', null),
-      'meta_title' => self::getValue('meta_title', 'Vendra Invoice System'),
-      'meta_description' => self::getValue('meta_description', 'Professional invoice management system with FIRS integration'),
-      'meta_keywords' => self::getValue('meta_keywords', 'invoice, tax, firs, nigeria'),
-      'withholding_tax_rate' => self::getValue('withholding_tax_rate', 5.0),
-      'withholding_tax_enabled' => self::getValue('withholding_tax_enabled', true),
+      'project_name' => self::getValue('project_name', 'Vendra Invoice System', $scope),
+      'project_logo' => self::getValue('project_logo', null, $scope),
+      'meta_title' => self::getValue('meta_title', 'Vendra Invoice System', $scope),
+      'meta_description' => self::getValue('meta_description', 'Professional invoice management system with FIRS integration', $scope),
+      'meta_keywords' => self::getValue('meta_keywords', 'invoice, tax, firs, nigeria', $scope),
+      'withholding_tax_rate' => self::getValue('withholding_tax_rate', 5.0, $scope),
+      'withholding_tax_enabled' => self::getValue('withholding_tax_enabled', true, $scope),
     ];
   }
 
@@ -144,10 +229,41 @@ class Setting extends Model
   {
     foreach ($settings as $key => $value) {
       if (is_array($value) && isset($value['value'])) {
-        self::setValue($key, $value['value'], $value['description'] ?? null);
+        self::setValue($key, $value['value'], $value['description'] ?? null, $value['scope'] ?? null);
       } else {
         self::setValue($key, $value);
       }
     }
+  }
+
+  protected static function getSettingRecord(string $key, ?array $scope = null): ?self
+  {
+    $scope = self::resolveScope($scope);
+
+    return self::query()
+      ->where('key', $key)
+      ->where('tenant_id', $scope['tenant_id'])
+      ->where('organization_id', $scope['organization_id'])
+      ->where('user_id', $scope['user_id'])
+      ->first();
+  }
+
+  protected static function resolveScope(?array $scope = null): array
+  {
+    $user = Auth::user();
+
+    $defaults = [
+      'tenant_id' => $user?->tenant_id,
+      'organization_id' => $user?->organization_id,
+      'user_id' => null,
+    ];
+
+    $scope = array_merge($defaults, $scope ?? []);
+
+    return [
+      'tenant_id' => $scope['tenant_id'] ?? null,
+      'organization_id' => $scope['organization_id'] ?? null,
+      'user_id' => $scope['user_id'] ?? null,
+    ];
   }
 }

@@ -112,7 +112,9 @@
 
 <body>
     @php
-        $projectName = \App\Models\Setting::getValue('project_name', 'Vendra Invoice System');
+        $settingScope = $settingScope ?? null;
+        $projectName = \App\Models\Setting::getValue('project_name', 'Vendra Invoice System', $settingScope);
+        $projectLogo = \App\Models\Setting::getValue('project_logo', null, $settingScope);
         $currency = $invoice->document_currency_code ?: 'NGN';
         $currencySymbol = match ($currency) {
             'NGN' => '₦',
@@ -175,6 +177,12 @@
     <table class="header-table">
         <tr>
             <td>
+                @if ($projectLogo)
+                    <div style="margin-bottom: 12px;">
+                        <img src="{{ Storage::url($projectLogo) }}" alt="{{ $projectName }}"
+                            style="max-height: 60px; max-width: 180px; object-fit: contain;">
+                    </div>
+                @endif
                 <h1 class="title">INVOICE</h1>
                 <div class="ref">Reference: <strong>#{{ $invoice->invoice_reference }}</strong></div>
                 @if ($irn)

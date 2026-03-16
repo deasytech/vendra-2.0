@@ -28,6 +28,13 @@
                 this.showError = true;
                 setTimeout(() => this.showError = false, 5000);
             });
+            Livewire.on('modal-close', (event) => {
+                const modalName = event?.name ?? event?.detail?.name;
+    
+                window.dispatchEvent(new CustomEvent('modal-close', {
+                    detail: { name: modalName }
+                }));
+            });
         }
     }">
         <!-- Success Toast -->
@@ -84,7 +91,7 @@
                 <div>
                     <p class="text-sm text-gray-600">Paid</p>
                     <p class="text-2xl font-bold text-gray-800">
-                        {{ $invoices->where('payment_status', 'paid')->count() }}</p>
+                        {{ $invoices->where('payment_status', 'PAID')->count() }}</p>
                 </div>
                 <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -98,7 +105,7 @@
                 <div>
                     <p class="text-sm text-gray-600">Pending</p>
                     <p class="text-2xl font-bold text-gray-800">
-                        {{ $invoices->where('payment_status', 'pending')->count() }}</p>
+                        {{ $invoices->where('payment_status', 'PENDING')->count() }}</p>
                 </div>
                 <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -110,9 +117,9 @@
         <div class="bg-white rounded-xl shadow-lg p-4 border-l-4 border-red-500">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600">Overdue</p>
+                    <p class="text-sm text-gray-600">Rejected</p>
                     <p class="text-2xl font-bold text-gray-800">
-                        {{ $invoices->where('payment_status', 'overdue')->count() }}</p>
+                        {{ $invoices->where('payment_status', 'REJECTED')->count() }}</p>
                 </div>
                 <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -298,11 +305,11 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    @if ($invoice->payment_status === 'paid') bg-green-100 text-green-800
-                                    @elseif($invoice->payment_status === 'pending') bg-yellow-100 text-yellow-800
-                                    @elseif($invoice->payment_status === 'overdue') bg-red-100 text-red-800
+                                    @if ($invoice->payment_status === 'PAID') bg-green-100 text-green-800
+                                    @elseif($invoice->payment_status === 'PENDING') bg-yellow-100 text-yellow-800
+                                    @elseif($invoice->payment_status === 'REJECTED') bg-red-100 text-red-800
                                     @else bg-gray-100 text-gray-800 @endif">
-                                    {{ ucfirst($invoice->payment_status) }}
+                                    {{ $invoice->payment_status }}
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -354,6 +361,13 @@
                                         <flux:menu.item icon="pencil" wire:click="editInvoice({{ $invoice->id }})">
                                             {{ __('Edit Invoice') }}
                                         </flux:menu.item>
+
+                                        <flux:modal.trigger name="update-payment-status">
+                                            <flux:menu.item icon="credit-card"
+                                                wire:click="openUpdatePaymentModal({{ $invoice->id }})">
+                                                {{ __('Update Payment') }}
+                                            </flux:menu.item>
+                                        </flux:modal.trigger>
 
                                         @if ($invoice->transmit === 'DRAFT')
                                             <flux:menu.item icon="paper-airplane"
@@ -476,4 +490,41 @@
             </div>
         </flux:modal>
     @endforeach
+
+    <flux:modal name="update-payment-status" class="max-w-md">
+        <div class="space-y-6 rounded-2xl bg-white p-6 text-gray-900 dark:bg-neutral-900 dark:text-white">
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">Update Payment Status</h3>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Select a new payment status for this invoice. The status will first be updated on FIRS and then
+                    saved locally after a successful response.
+                </p>
+            </div>
+
+            <div>
+                <label for="payment_status"
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Payment
+                    Status</label>
+                <select id="payment_status" wire:model="newPaymentStatus"
+                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-neutral-800 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400">
+                    <option value="REJECTED">REJECTED</option>
+                    <option value="PENDING">PENDING</option>
+                    <option value="PAID">PAID</option>
+                </select>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <flux:modal.close>
+                    <flux:button variant="filled" class="!cursor-pointer">
+                        {{ __('Cancel') }}
+                    </flux:button>
+                </flux:modal.close>
+
+                <flux:button variant="primary" wire:click="updatePaymentStatus" wire:loading.attr="disabled"
+                    class="!cursor-pointer">
+                    {{ __('Save Changes') }}
+                </flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

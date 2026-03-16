@@ -27,6 +27,8 @@ class InvoicesIndex extends Component
     public $date_to = '';
     public $amount_min = '';
     public $amount_max = '';
+    public $selectedInvoiceId = null;
+    public $newPaymentStatus = 'PENDING';
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -103,7 +105,11 @@ class InvoicesIndex extends Component
 
     public function render()
     {
-        $query = Invoice::with(['customer', 'organization']);
+        $query = Invoice::with(['customer', 'organization'])
+            ->where(function ($q) {
+                $q->whereNull('metadata->invoice_flow')
+                    ->orWhere('metadata->invoice_flow', '!=', 'incoming');
+            });
 
         // Apply filters
         if ($this->search) {
@@ -152,7 +158,7 @@ class InvoicesIndex extends Component
         $invoices = $query->latest()->paginate(10);
 
         $customers = Customer::orderBy('name')->get();
-        $paymentStatuses = ['paid', 'pending', 'overdue'];
+        $paymentStatuses = ['REJECTED', 'PENDING', 'PAID'];
         $transmitStatuses = ['PENDING', 'TRANSMITTING', 'TRANSMITTED', 'FAILED'];
         $currencies = ['NGN', 'USD', 'EUR', 'GBP', 'CAD', 'GHS'];
 
@@ -185,6 +191,104 @@ class InvoicesIndex extends Component
 
         // Redirect to edit page
         return redirect()->route('invoices.edit', $invoice);
+    }
+
+    public function openUpdatePaymentModal($invoiceId)
+    {
+        $invoice = Invoice::findOrFail($invoiceId);
+
+        $this->selectedInvoiceId = $invoice->id;
+        $this->newPaymentStatus = $invoice->payment_status ?: 'PENDING';
+    }
+
+    public function updatePaymentStatus()
+    {
+        try {
+            $invoice = Invoice::findOrFail($this->selectedInvoiceId);
+
+            if (empty($invoice->irn)) {
+                $this->dispatch('error', 'This invoice does not have a valid IRN, so payment cannot be updated on FIRS.');
+                return;
+            }
+
+            $allowedStatuses = ['REJECTED', 'PENDING', 'PAID'];
+
+            if (! in_array($this->newPaymentStatus, $allowedStatuses, true)) {
+                $this->dispatch('error', 'Invalid payment status selected.');
+                return;
+            }
+
+            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
+
+            if (! $cred) {
+                $this->dispatch('error', 'Taxly credentials not configured. Please complete Taxly setup first.');
+                return;
+            }
+
+            Log::info('Updating invoice payment status on Taxly', [
+                'invoice_id' => $invoice->id,
+                'invoice_reference' => $invoice->invoice_reference,
+                'irn' => $invoice->irn,
+                'payment_status' => $this->newPaymentStatus,
+                'taxly_tenant_id' => $taxlyTenantId,
+                'credential_id' => $cred->id,
+            ]);
+
+            $updatedStatus = $this->newPaymentStatus;
+
+            $service = new TaxlyService($cred);
+            $response = $service->updateInvoicePayment($invoice->irn, $updatedStatus);
+
+            $invoice->transmissions()->create([
+                'irn' => $invoice->irn,
+                'action' => 'update_payment',
+                'request_payload' => [
+                    'payment_status' => $updatedStatus,
+                ],
+                'response_payload' => $response,
+                'status' => 'success',
+                'message' => 'Payment status updated successfully on FIRS.',
+                'transmitted_at' => now(),
+            ]);
+
+            $invoice->update([
+                'payment_status' => $updatedStatus,
+            ]);
+
+            $this->selectedInvoiceId = null;
+            $this->newPaymentStatus = 'PENDING';
+            $this->dispatch('modal-close', name: 'update-payment-status');
+            $this->dispatch('success', "Invoice {$invoice->invoice_reference} payment status was updated to {$updatedStatus}.");
+        } catch (\Throwable $e) {
+            if ($this->selectedInvoiceId) {
+                try {
+                    $invoice = Invoice::find($this->selectedInvoiceId);
+
+                    if ($invoice) {
+                        $invoice->transmissions()->create([
+                            'irn' => $invoice->irn,
+                            'action' => 'update_payment',
+                            'request_payload' => [
+                                'payment_status' => $this->newPaymentStatus,
+                            ],
+                            'response_payload' => ['error' => $e->getMessage()],
+                            'status' => 'failed',
+                            'message' => 'Payment status update failed.',
+                            'error' => $e->getMessage(),
+                            'transmitted_at' => now(),
+                        ]);
+                    }
+                } catch (\Throwable $inner) {
+                    Log::error('Failed to record payment status update error', [
+                        'invoice_id' => $this->selectedInvoiceId,
+                        'error' => $inner->getMessage(),
+                    ]);
+                }
+            }
+
+            $this->dispatch('error', 'Failed to update payment status: ' . $e->getMessage());
+        }
     }
 
     /**

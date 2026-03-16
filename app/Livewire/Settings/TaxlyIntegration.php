@@ -9,11 +9,21 @@ use App\Services\TaxlyService;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class TaxlyIntegration extends Component
 {
   public $organization;
   public $credential;
+
+  // Webhook form/state
+  public $webhookId = null;
+  public $webhookUrl = '';
+  public $webhookSecret = '';
+  public $webhookSubscribedEvents = ['exchange_invoice.received', 'invoice.transmitted.decrypted'];
+  public $webhookResult = null;
+  public $webhookList = [];
+  public $showWebhookForm = false;
 
   // Integrator registration form
   public $integratorName = '';
@@ -56,7 +66,10 @@ class TaxlyIntegration extends Component
       $this->integratorWebsite = config('app.url');
       $this->integratorContactPerson = Auth::user()->name;
       $this->integratorContactEmail = Auth::user()->email;
+      $this->webhookUrl = $this->generateDefaultWebhookUrl();
     }
+
+    $this->loadWebhookConfiguration();
   }
 
   public function loadCredential()
@@ -69,6 +82,36 @@ class TaxlyIntegration extends Component
     // If credential exists with stored email, update the form field
     if ($this->credential && $this->credential->integrator_contact_email) {
       $this->integratorContactEmail = $this->credential->integrator_contact_email;
+    }
+  }
+
+  public function loadWebhookConfiguration()
+  {
+    $this->webhookUrl = $this->webhookUrl ?: $this->generateDefaultWebhookUrl();
+
+    $meta = $this->credential?->meta ?? [];
+    $storedWebhook = $meta['webhook'] ?? [];
+
+    $this->webhookId = $storedWebhook['id'] ?? null;
+    $this->webhookSecret = $storedWebhook['secret'] ?? $this->webhookSecret;
+    $this->webhookSubscribedEvents = $storedWebhook['subscribed_events'] ?? ['exchange_invoice.received', 'invoice.transmitted.decrypted'];
+    $this->webhookResult = $storedWebhook ?: null;
+
+    if (!empty($storedWebhook['url'])) {
+      $this->webhookUrl = $storedWebhook['url'];
+    } elseif ($this->organization) {
+      $this->webhookUrl = $this->generateDefaultWebhookUrl();
+    }
+
+    if ($this->credential?->api_key) {
+      $this->refreshWebhooks(false);
+    } else {
+      $this->webhookId = null;
+      $this->webhookResult = null;
+    }
+
+    if (blank($this->webhookSecret)) {
+      $this->webhookSecret = $this->generateDefaultWebhookSecret();
     }
   }
 
@@ -404,6 +447,216 @@ class TaxlyIntegration extends Component
     } catch (\Exception $e) {
       $this->errorMessage = 'Failed to clear API key: ' . $e->getMessage();
     }
+  }
+
+  public function toggleWebhookForm()
+  {
+    $this->showWebhookForm = !$this->showWebhookForm;
+    $this->errorMessage = null;
+
+    if ($this->showWebhookForm && blank($this->webhookSecret)) {
+      $this->webhookSecret = $this->generateDefaultWebhookSecret();
+    }
+  }
+
+  public function refreshWebhooks(bool $flashMessage = true)
+  {
+    try {
+      if (!$this->credential || !$this->credential->api_key) {
+        if ($flashMessage) {
+          $this->errorMessage = 'Configure the integrator API key before loading webhooks.';
+        }
+        return;
+      }
+
+      $taxlyService = new TaxlyService($this->credential);
+      $result = $taxlyService->listWebhooks();
+      $webhooks = $result['data'] ?? $result['webhooks'] ?? [];
+      $storedWebhook = $this->credential?->meta['webhook'] ?? [];
+
+      $this->webhookList = collect(is_array($webhooks) ? $webhooks : [])
+        ->filter(fn($webhook) => $this->webhookMatchesCurrentTenant($webhook))
+        ->values()
+        ->all();
+
+      $matchedWebhook = collect($this->webhookList)->first(function ($webhook) use ($storedWebhook) {
+        return (!empty($this->webhookId) && ($webhook['id'] ?? null) == $this->webhookId)
+          || (!empty($storedWebhook['id']) && ($webhook['id'] ?? null) == ($storedWebhook['id'] ?? null))
+          || (($webhook['url'] ?? null) === $this->webhookUrl)
+          || (!empty($storedWebhook['url']) && (($webhook['url'] ?? null) === ($storedWebhook['url'] ?? null)));
+      });
+
+      if ($matchedWebhook) {
+        $this->hydrateWebhookStateFromResponse($matchedWebhook);
+      } else {
+        // Since GET /webhooks is already scoped by the current API key / tenant,
+        // an empty or non-matching response means this integrator has no registered webhook.
+        $this->webhookId = null;
+        $this->webhookUrl = $this->generateDefaultWebhookUrl();
+        $this->webhookResult = null;
+      }
+
+      if ($flashMessage) {
+        session()->flash('success', 'Webhook list refreshed successfully.');
+      }
+    } catch (\Exception $e) {
+      Log::error('Failed to refresh webhooks', [
+        'error' => $e->getMessage(),
+        'credential_id' => $this->credential?->id,
+      ]);
+
+      // Only on API failure do we fall back to locally stored webhook metadata.
+      $storedWebhook = $this->credential?->meta['webhook'] ?? [];
+      if (!empty($storedWebhook)) {
+        $this->webhookId = $storedWebhook['id'] ?? null;
+        $this->webhookUrl = $storedWebhook['url'] ?? $this->generateDefaultWebhookUrl();
+        $this->webhookSecret = $storedWebhook['secret'] ?? $this->webhookSecret;
+        $this->webhookSubscribedEvents = $storedWebhook['subscribed_events'] ?? $this->webhookSubscribedEvents;
+        $this->webhookResult = $storedWebhook;
+      }
+
+      if ($flashMessage) {
+        $this->errorMessage = 'Failed to refresh webhooks: ' . $e->getMessage();
+      }
+    }
+  }
+
+  public function registerWebhook()
+  {
+    $this->validateWebhookForm();
+
+    try {
+      if (!$this->credential || !$this->credential->api_key) {
+        $this->errorMessage = 'Configure the integrator API key before registering a webhook.';
+        return;
+      }
+
+      $taxlyService = new TaxlyService($this->credential);
+      $payload = [
+        'url' => $this->webhookUrl,
+        'secret' => $this->webhookSecret,
+        'subscribed_events' => array_values($this->webhookSubscribedEvents),
+      ];
+
+      $result = $taxlyService->createWebhook($payload);
+      $webhook = $result['data'] ?? $result;
+
+      $this->hydrateWebhookStateFromResponse($webhook, $payload);
+      $this->showWebhookForm = false;
+      $this->errorMessage = null;
+      $this->refreshWebhooks(false);
+
+      session()->flash('success', 'Webhook registered successfully.');
+    } catch (\Exception $e) {
+      Log::error('Webhook registration failed', [
+        'error' => $e->getMessage(),
+        'credential_id' => $this->credential?->id,
+      ]);
+
+      $this->errorMessage = 'Webhook registration failed: ' . $e->getMessage();
+    }
+  }
+
+  public function updateWebhook()
+  {
+    $this->validateWebhookForm();
+
+    try {
+      if (!$this->credential || !$this->credential->api_key) {
+        $this->errorMessage = 'Configure the integrator API key before updating a webhook.';
+        return;
+      }
+
+      if (!$this->webhookId) {
+        $this->errorMessage = 'No existing webhook ID found. Register the webhook first.';
+        return;
+      }
+
+      $taxlyService = new TaxlyService($this->credential);
+      $payload = [
+        'url' => $this->webhookUrl,
+        'secret' => $this->webhookSecret,
+        'subscribed_events' => array_values($this->webhookSubscribedEvents),
+      ];
+
+      $result = $taxlyService->updateWebhook((string) $this->webhookId, $payload);
+      $webhook = $result['data'] ?? $result;
+
+      $this->hydrateWebhookStateFromResponse($webhook, $payload);
+      $this->showWebhookForm = false;
+      $this->errorMessage = null;
+      $this->refreshWebhooks(false);
+
+      session()->flash('success', 'Webhook updated successfully.');
+    } catch (\Exception $e) {
+      Log::error('Webhook update failed', [
+        'error' => $e->getMessage(),
+        'credential_id' => $this->credential?->id,
+        'webhook_id' => $this->webhookId,
+      ]);
+
+      $this->errorMessage = 'Webhook update failed: ' . $e->getMessage();
+    }
+  }
+
+  protected function validateWebhookForm(): void
+  {
+    $this->validate([
+      'webhookUrl' => 'required|url|max:255',
+      'webhookSecret' => 'required|string|min:12|max:255',
+      'webhookSubscribedEvents' => 'required|array|min:1',
+      'webhookSubscribedEvents.*' => 'required|string|in:exchange_invoice.received,invoice.transmitted.decrypted',
+    ]);
+  }
+
+  protected function hydrateWebhookStateFromResponse(array $webhook, array $fallbackPayload = []): void
+  {
+    $normalized = [
+      'id' => $webhook['id'] ?? $this->webhookId,
+      'url' => $webhook['url'] ?? $fallbackPayload['url'] ?? $this->webhookUrl,
+      'secret' => $fallbackPayload['secret'] ?? $this->webhookSecret,
+      'subscribed_events' => $webhook['subscribed_events'] ?? $fallbackPayload['subscribed_events'] ?? $this->webhookSubscribedEvents,
+      'status' => $webhook['status'] ?? ($webhook['active'] ?? null),
+      'last_response' => $webhook['last_response'] ?? null,
+      'updated_at' => $webhook['updated_at'] ?? $webhook['created_at'] ?? now()->toDateTimeString(),
+      'organization_id' => $this->organization?->id,
+      'integrator_tenant_id' => $this->credential?->tenant_id,
+    ];
+
+    $this->webhookId = $normalized['id'];
+    $this->webhookUrl = $normalized['url'];
+    $this->webhookSecret = $normalized['secret'];
+    $this->webhookSubscribedEvents = $normalized['subscribed_events'];
+    $this->webhookResult = $normalized;
+
+    if ($this->credential) {
+      $meta = $this->credential->meta ?? [];
+      $meta['webhook'] = $normalized;
+      $this->credential->update(['meta' => $meta]);
+      $this->credential->refresh();
+    }
+  }
+
+  protected function generateDefaultWebhookSecret(): string
+  {
+    return 'vendra-webhook-' . Str::random(40);
+  }
+
+  protected function generateDefaultWebhookUrl(): string
+  {
+    return url('/api/taxly/webhook/invoice');
+  }
+
+  protected function webhookMatchesCurrentTenant(array $webhook): bool
+  {
+    $tenantId = (string) ($webhook['tenant_id'] ?? '');
+    $currentTenantId = (string) ($this->credential?->tenant_id ?? '');
+
+    if ($tenantId === '' || $currentTenantId === '') {
+      return false;
+    }
+
+    return $tenantId === $currentTenantId;
   }
 
   /**

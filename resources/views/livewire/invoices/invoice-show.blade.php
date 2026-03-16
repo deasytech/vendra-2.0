@@ -764,7 +764,7 @@
                     </span>
                 </button>
 
-                @if ($invoice->transmit)
+                @if ($invoice->transmit && data_get($invoice->metadata, 'invoice_flow') !== 'incoming')
                     <button wire:click="transmitInvoice" wire:loading.attr="disabled"
                         class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-sm hover:bg-green-700 transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                         <span wire:loading.remove wire:target="transmitInvoice">

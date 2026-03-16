@@ -215,11 +215,13 @@ class ExchangeInvoices extends Component
       if (isset($result['data']) && is_array($result['data'])) {
         $syncedCount = 0;
         $existingCount = 0;
+        $skippedCount = 0;
 
         foreach ($result['data'] as $exchangeInvoice) {
           // Skip if no IRN is provided
           if (empty($exchangeInvoice['irn'])) {
             Log::warning('Exchange invoice missing IRN, skipping', ['invoice' => $exchangeInvoice]);
+            $skippedCount++;
             continue;
           }
 
@@ -238,9 +240,21 @@ class ExchangeInvoices extends Component
         $this->syncResults = [
           'synced' => $syncedCount,
           'existing' => $existingCount,
+          'skipped' => $skippedCount,
           'total' => count($result['data'])
         ];
-        $this->syncMessage = "Sync completed: {$syncedCount} new invoices, {$existingCount} already existed";
+
+        $summaryParts = [
+          "{$syncedCount} new invoices",
+          "{$existingCount} already existed",
+        ];
+
+        if ($skippedCount > 0) {
+          $summaryParts[] = "{$skippedCount} skipped";
+        }
+
+        $this->syncMessage = 'Sync completed: ' . implode(', ', $summaryParts)
+          . ' out of ' . count($result['data']) . ' returned by Taxly';
       } else {
         $this->syncMessage = 'No invoices found or invalid response from Taxly';
         $this->syncResults = [];
@@ -271,7 +285,9 @@ class ExchangeInvoices extends Component
 
   protected function createInvoiceFromExchangeData(array $exchangeInvoice, $organization)
   {
-    $invoiceData = $exchangeInvoice['invoice_data'] ?? [];
+    $invoiceData = $exchangeInvoice['invoice_data']
+      ?? $exchangeInvoice['decrypted_invoice']
+      ?? [];
     $sellerDetails = $invoiceData['sellerDetails'] ?? [];
 
     // Find or create customer
@@ -287,10 +303,14 @@ class ExchangeInvoices extends Component
       ]
     );
 
+    $taxExclusiveAmount = (float) data_get($invoiceData, 'taxExclusiveAmount', data_get($invoiceData, 'subtotal', data_get($invoiceData, 'totalAmount', 0)));
+    $taxInclusiveAmount = (float) data_get($invoiceData, 'taxInclusiveAmount', data_get($invoiceData, 'totalAmount', 0));
+    $payableAmount = (float) data_get($invoiceData, 'payableAmount', data_get($invoiceData, 'totalAmount', $taxInclusiveAmount));
+
     $legalMonetaryTotal = [
-      'tax_exclusive_amount' => $invoiceData['totalAmount'] ?? 0,
-      'tax_inclusive_amount' => $invoiceData['totalAmount'] ?? 0,
-      'payable_amount' => $invoiceData['totalAmount'] ?? 0,
+      'tax_exclusive_amount' => $taxExclusiveAmount,
+      'tax_inclusive_amount' => $taxInclusiveAmount,
+      'payable_amount' => $payableAmount,
     ];
 
     $accountingSupplierParty = [
@@ -326,6 +346,9 @@ class ExchangeInvoices extends Component
         'direction' => $exchangeInvoice['direction'] ?? 'INCOMING',
         'received_at' => $exchangeInvoice['received_at'] ?? now()->toIso8601String(),
         'status' => $exchangeInvoice['status'] ?? 'TRANSMITTED',
+        'buyer_tin' => $exchangeInvoice['buyer_tin'] ?? ($buyerDetails['tin'] ?? null),
+        'seller_tin' => $exchangeInvoice['seller_tin'] ?? ($sellerDetails['tin'] ?? null),
+        'decrypted_invoice' => $invoiceData,
       ],
       'transmit' => 'RECEIVED',
       'delivered' => true,
@@ -333,15 +356,23 @@ class ExchangeInvoices extends Component
 
     // Create invoice lines
     if (isset($invoiceData['items']) && is_array($invoiceData['items'])) {
-      foreach ($invoiceData['items'] as $item) {
+      foreach ($invoiceData['items'] as $index => $item) {
         \App\Models\InvoiceLine::create([
           'invoice_id' => $invoice->id,
-          'description' => $item['description'] ?? '',
-          'invoiced_quantity' => $item['quantity'] ?? 1,
-          'unit_price' => $item['unitPrice'] ?? 0,
-          'line_extension_amount' => $item['totalPrice'] ?? 0,
-          'tax_amount' => $item['taxAmount'] ?? 0,
-          'tax_rate' => $item['taxRate'] ?? 0,
+          'hsn_code' => $item['hsnCode'] ?? $item['hsn_code'] ?? 'GENERAL',
+          'product_category' => $item['productCategory'] ?? $item['product_category'] ?? 'General Items',
+          'invoiced_quantity' => (int) ($item['quantity'] ?? $item['invoiced_quantity'] ?? 1),
+          'line_extension_amount' => (float) ($item['totalPrice'] ?? $item['line_extension_amount'] ?? (($item['unitPrice'] ?? data_get($item, 'price.price_amount', 0)) * ($item['quantity'] ?? 1))),
+          'item' => [
+            'name' => $item['name'] ?? $item['description'] ?? 'Item',
+            'description' => $item['description'] ?? $item['name'] ?? 'Item',
+          ],
+          'price' => [
+            'price_amount' => (float) ($item['unitPrice'] ?? data_get($item, 'price.price_amount', 0)),
+            'base_quantity' => (float) data_get($item, 'price.base_quantity', 1),
+            'price_unit' => ($invoiceData['currency'] ?? 'NGN') . ' per 1',
+          ],
+          'order' => $index,
         ]);
       }
     }
@@ -350,9 +381,13 @@ class ExchangeInvoices extends Component
     if (isset($invoiceData['taxAmount']) && $invoiceData['taxAmount'] > 0) {
       \App\Models\InvoiceTaxTotal::create([
         'invoice_id' => $invoice->id,
-        'tax_category_id' => 'VAT',
-        'tax_amount' => $invoiceData['taxAmount'],
-        'tax_percentage' => $invoiceData['items'][0]['taxRate'] ?? 7.5,
+        'tax_amount' => (float) $invoiceData['taxAmount'],
+        'tax_subtotal' => [[
+          'taxable_amount' => $taxExclusiveAmount,
+          'tax_amount' => (float) $invoiceData['taxAmount'],
+          'tax_category_id' => 'VAT',
+          'tax_percentage' => (float) ($invoiceData['items'][0]['taxRate'] ?? 7.5),
+        ]],
       ]);
     }
 
@@ -369,14 +404,41 @@ class ExchangeInvoices extends Component
 
   public function render()
   {
+    $user = Auth::user();
+    $organization = $user?->organization;
+    $organizationTin = $organization?->tin;
+
     $query = Invoice::with(['customer', 'organization', 'transmissions'])
-      ->where('transmit', 'RECEIVED');
+      ->where(function ($q) {
+        $q->where('metadata->invoice_flow', 'incoming')
+          ->orWhere('transmit', 'RECEIVED')
+          ->orWhere('transmit', 'ACKNOWLEDGED');
+      });
 
     // Filter by metadata JSON - invoices from FIRS Exchange
     $query->where(function ($q) {
-      $q->whereJsonContains('metadata->source', 'FIRS_EXCHANGE')
-        ->orWhereJsonContains('metadata->direction', 'INCOMING');
+      $q->where('metadata->invoice_flow', 'incoming')
+        ->orWhere('metadata->source', 'FIRS_EXCHANGE')
+        ->orWhere('metadata->direction', 'INCOMING');
     });
+
+    if ($organization) {
+      $query->where('organization_id', $organization->id);
+    }
+
+    if ($organizationTin) {
+      $query->where(function ($q) use ($organizationTin) {
+        $q->where('metadata->buyer_tin', $organizationTin)
+          ->orWhere('accounting_customer_party->party_tin', $organizationTin);
+      });
+    }
+
+    if ($this->statusFilter) {
+      $query->where(function ($q) {
+        $q->where('transmit', $this->statusFilter)
+          ->orWhere('metadata->status', $this->statusFilter);
+      });
+    }
 
     // Apply search
     if ($this->search) {
@@ -400,7 +462,8 @@ class ExchangeInvoices extends Component
     $invoices = $query->latest()->paginate(10);
 
     return view('livewire.invoices.exchange-invoices', [
-      'invoices' => $invoices
+      'invoices' => $invoices,
+      'organizationTin' => $organizationTin,
     ]);
   }
 }

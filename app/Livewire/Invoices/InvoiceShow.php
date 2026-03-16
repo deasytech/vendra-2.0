@@ -188,10 +188,17 @@ class InvoiceShow extends Component
                 $qrDataUri = $this->generateQrCode($encrypted);
             }
 
+            $settingScope = [
+                'tenant_id' => $invoice->tenant_id,
+                'organization_id' => $invoice->organization_id,
+                'user_id' => null,
+            ];
+
             $pdf = Pdf::loadView('pdf.invoice', [
                 'invoice' => $invoice,
                 'qrDataUri' => $qrDataUri,
                 'irn' => $invoice->irn,
+                'settingScope' => $settingScope,
             ])->setPaper('a4', 'portrait');
 
             return response()->streamDownload(function () use ($pdf) {

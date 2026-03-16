@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Setting;
+use App\Models\Organization;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -117,5 +119,58 @@ class SettingsTest extends TestCase
     $this->assertNotNull(Setting::getValue('withholding_tax_rate'));
     $this->assertNotNull(Setting::getValue('meta_title'));
     $this->assertNotNull(Setting::getValue('meta_description'));
+  }
+
+  public function test_settings_can_be_scoped_per_organization()
+  {
+    $tenant = Tenant::factory()->create();
+    $organizationA = Organization::factory()->create(['tenant_id' => $tenant->id]);
+    $organizationB = Organization::factory()->create(['tenant_id' => $tenant->id]);
+
+    $userA = User::factory()->create([
+      'tenant_id' => $tenant->id,
+      'organization_id' => $organizationA->id,
+    ]);
+
+    $userB = User::factory()->create([
+      'tenant_id' => $tenant->id,
+      'organization_id' => $organizationB->id,
+    ]);
+
+    $this->actingAs($userA);
+    Setting::setValue('project_logo', 'logos/company-a.png');
+    Setting::setValue('company_name', 'Company A');
+
+    $this->actingAs($userB);
+    Setting::setValue('project_logo', 'logos/company-b.png');
+    Setting::setValue('company_name', 'Company B');
+
+    $this->actingAs($userA);
+    $this->assertSame('logos/company-a.png', Setting::getValue('project_logo'));
+    $this->assertSame('Company A', Setting::getValue('company_name'));
+
+    $this->actingAs($userB);
+    $this->assertSame('logos/company-b.png', Setting::getValue('project_logo'));
+    $this->assertSame('Company B', Setting::getValue('company_name'));
+  }
+
+  public function test_scoped_settings_fall_back_to_global_value()
+  {
+    Setting::setValue('project_name', 'Global Project Name', null, [
+      'tenant_id' => null,
+      'organization_id' => null,
+      'user_id' => null,
+    ]);
+
+    $tenant = Tenant::factory()->create();
+    $organization = Organization::factory()->create(['tenant_id' => $tenant->id]);
+    $user = User::factory()->create([
+      'tenant_id' => $tenant->id,
+      'organization_id' => $organization->id,
+    ]);
+
+    $this->actingAs($user);
+
+    $this->assertSame('Global Project Name', Setting::getValue('project_name'));
   }
 }

@@ -465,7 +465,9 @@
                             </svg>
                         </div>
                         <div class="ml-4">
-                            <h3 class="text-lg font-medium text-gray-900">View Exchange Invoices</h3>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-400 dark:hover:text-gray-900">
+                                View Exchange Invoices
+                            </h3>
                             <p class="text-sm text-gray-500">See invoices received from your suppliers</p>
                         </div>
                     </a>
@@ -479,10 +481,215 @@
                             </svg>
                         </div>
                         <div class="ml-4">
-                            <h3 class="text-lg font-medium text-gray-900">Webhook URL</h3>
-                            <p class="text-sm text-gray-500 font-mono">{{ url('/api/taxly/webhook/invoice') }}</p>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-400">Webhook URL</h3>
+                            <p class="text-sm text-gray-500 font-mono break-all">{{ $webhookUrl }}</p>
                         </div>
                     </div>
+                </div>
+
+                <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Webhook Registration</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Register this Vendra endpoint on Taxly using your integrator API key.
+                            </p>
+                        </div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <button wire:click="toggleWebhookForm"
+                                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                {{ $webhookId ? 'Edit Webhook' : 'Register Webhook' }}
+                            </button>
+
+                            <button wire:click="refreshWebhooks"
+                                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Refresh Webhooks
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Webhook ID</p>
+                            <p class="mt-1 text-sm font-mono text-gray-900 dark:text-white">
+                                {{ $webhookId ?: 'Not registered yet' }}</p>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                            <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Subscribed
+                                Events</p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach ($webhookSubscribedEvents as $event)
+                                    <span
+                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                        {{ $event }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+
+                    @if ($webhookResult)
+                        <div
+                            class="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 p-4 mb-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p class="text-xs uppercase tracking-wide text-green-700 dark:text-green-300">
+                                        Status</p>
+                                    <p class="mt-1 text-green-900 dark:text-green-100">
+                                        {{ is_bool($webhookResult['status'] ?? null) ? ($webhookResult['status'] ?? false ? 'Active' : 'Inactive') : $webhookResult['status'] ?? 'Registered' }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-xs uppercase tracking-wide text-green-700 dark:text-green-300">Last
+                                        Updated</p>
+                                    <p class="mt-1 text-green-900 dark:text-green-100">
+                                        {{ $webhookResult['updated_at'] ?? 'N/A' }}</p>
+                                </div>
+                            </div>
+
+                            @if (!empty($webhookResult['last_response']))
+                                <div class="mt-4">
+                                    <p class="text-xs uppercase tracking-wide text-green-700 dark:text-green-300 mb-1">
+                                        Last Response</p>
+                                    <pre class="text-xs bg-white/70 dark:bg-gray-900/40 rounded p-3 overflow-x-auto text-gray-700 dark:text-gray-200">{{ json_encode($webhookResult['last_response'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
+                    @if ($showWebhookForm)
+                        <div
+                            class="rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-gray-50 dark:bg-gray-900/20">
+                            <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                                {{ $webhookId ? 'Update Taxly Webhook' : 'Register Taxly Webhook' }}
+                            </h4>
+
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="webhookUrl"
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">Webhook
+                                        URL</label>
+                                    <input type="url" wire:model="webhookUrl" id="webhookUrl"
+                                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                    @error('webhookUrl')
+                                        <span class="text-red-500 text-xs">{{ $message }}</span>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label for="webhookSecret"
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300">Webhook
+                                        Secret</label>
+                                    <input type="text" wire:model="webhookSecret" id="webhookSecret"
+                                        placeholder="your-super-secure-webhook-secret-12345"
+                                        class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                    @error('webhookSecret')
+                                        <span class="text-red-500 text-xs">{{ $message }}</span>
+                                    @enderror
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Taxly will use this secret
+                                        when signing webhook deliveries.</p>
+                                </div>
+
+                                <div>
+                                    <label
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Subscribed
+                                        Events</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" wire:model="webhookSubscribedEvents"
+                                                value="exchange_invoice.received"
+                                                class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                            <span
+                                                class="ml-2 text-sm text-gray-700 dark:text-gray-300">exchange_invoice.received</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" wire:model="webhookSubscribedEvents"
+                                                value="invoice.transmitted.decrypted"
+                                                class="rounded border-gray-300 dark:border-gray-600 text-indigo-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                            <span
+                                                class="ml-2 text-sm text-gray-700 dark:text-gray-300">invoice.transmitted.decrypted</span>
+                                        </label>
+                                    </div>
+                                    @error('webhookSubscribedEvents')
+                                        <span class="text-red-500 text-xs">{{ $message }}</span>
+                                    @enderror
+                                    @error('webhookSubscribedEvents.*')
+                                        <span class="text-red-500 text-xs">{{ $message }}</span>
+                                    @enderror
+                                </div>
+
+                                <div class="flex justify-end gap-3">
+                                    <button type="button" wire:click="toggleWebhookForm"
+                                        class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        Cancel
+                                    </button>
+
+                                    @if ($webhookId)
+                                        <button type="button" wire:click="updateWebhook"
+                                            wire:loading.attr="disabled" wire:target="updateWebhook"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <svg wire:loading wire:target="updateWebhook"
+                                                class="animate-spin -ml-0.5 mr-2 h-4 w-4 text-white" fill="none"
+                                                viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                    stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
+                                            </svg>
+                                            Update Webhook
+                                        </button>
+                                    @else
+                                        <button type="button" wire:click="registerWebhook"
+                                            wire:loading.attr="disabled" wire:target="registerWebhook"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <svg wire:loading wire:target="registerWebhook"
+                                                class="animate-spin -ml-0.5 mr-2 h-4 w-4 text-white" fill="none"
+                                                viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                    stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
+                                            </svg>
+                                            Register Webhook
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if (!empty($webhookList))
+                        <div class="mt-6">
+                            <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Discovered Taxly
+                                Webhooks</h4>
+                            <div class="space-y-3">
+                                @foreach ($webhookList as $hook)
+                                    <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                                        <div
+                                            class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                            <div>
+                                                <p class="text-sm font-mono text-gray-900 dark:text-white break-all">
+                                                    {{ $hook['url'] ?? 'N/A' }}</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">ID:
+                                                    {{ $hook['id'] ?? 'N/A' }}</p>
+                                            </div>
+                                            <div class="flex flex-wrap gap-2">
+                                                @foreach ($hook['subscribed_events'] ?? [] as $event)
+                                                    <span
+                                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                        {{ $event }}
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         @endif

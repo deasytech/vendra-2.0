@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\Setting;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Illuminate\Support\Facades\Storage;
@@ -123,6 +124,15 @@ class GeneralSettings extends Component
     ]);
 
     try {
+      $user = Auth::user();
+      $logoDirectory = collect([
+        'logos',
+        'tenants',
+        $user?->tenant_id,
+        'organizations',
+        $user?->organization_id,
+      ])->filter(fn($segment) => $segment !== null && $segment !== '')->implode('/');
+
       // Handle logo upload
       if ($this->project_logo) {
         // Delete old logo if exists
@@ -131,7 +141,7 @@ class GeneralSettings extends Component
         }
 
         // Store new logo
-        $logoPath = $this->project_logo->store('logos', 'public');
+        $logoPath = $this->project_logo->store($logoDirectory ?: 'logos', 'public');
         Setting::setValue('project_logo', $logoPath, 'Project logo');
       }
 

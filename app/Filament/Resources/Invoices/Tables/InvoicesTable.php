@@ -3,8 +3,6 @@
 namespace App\Filament\Resources\Invoices\Tables;
 
 use App\Models\Invoice;
-use App\Services\TaxlyService;
-use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -12,12 +10,9 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
-use Filament\Notifications\Notification;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
-use Throwable;
 
 class InvoicesTable
 {
@@ -30,7 +25,7 @@ class InvoicesTable
                 TextColumn::make('issue_date')->date(),
                 TextColumn::make('payment_status')
                     ->badge()
-                    ->colors(['success' => 'PAID', 'warning' => 'PENDING']),
+                    ->colors(['danger' => 'REJECTED', 'success' => 'PAID', 'warning' => 'PENDING']),
                 TextColumn::make('transmit')->badge(),
                 TextColumn::make('created_at')
                     ->dateTime()

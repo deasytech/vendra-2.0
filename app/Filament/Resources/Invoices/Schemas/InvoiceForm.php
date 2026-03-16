@@ -21,7 +21,11 @@ class InvoiceForm
                     DatePicker::make('issue_date')->required(),
                     DatePicker::make('due_date'),
                     Select::make('payment_status')
-                        ->options(['PENDING' => 'PENDING', 'PAID' => 'PAID'])
+                        ->options([
+                            'REJECTED' => 'REJECTED',
+                            'PENDING' => 'PENDING',
+                            'PAID' => 'PAID',
+                        ])
                         ->default('PENDING'),
                     Textarea::make('note')->columnSpanFull(),
                 ])->columnSpanFull()->columns(2)

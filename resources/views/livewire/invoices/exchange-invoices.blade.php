@@ -206,9 +206,6 @@
                     <tr>
                         <th
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                            Reference</th>
-                        <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Supplier</th>
                         <th
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -232,10 +229,6 @@
                     @forelse ($invoices as $invoice)
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                    {{ $invoice->invoice_reference }}</div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900 dark:text-white">
                                     {{ $invoice->customer?->name ?? 'Unknown' }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
@@ -251,43 +244,33 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                  @if ($invoice->transmit === 'RECEIVED') bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300
-                  @elseif($invoice->transmit === 'CONFIRMED') bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300
-                  @else bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 @endif">
-                                    {{ $invoice->transmit }}
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
+                                    INCOMING
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
+                                @php
+                                    $storedPayableAmount =
+                                        (float) ($invoice->legal_monetary_total['payable_amount'] ?? 0);
+                                    $decryptedPayableAmount =
+                                        (float) (data_get(
+                                            $invoice->metadata,
+                                            'decrypted_invoice.legal_monetary_total.payable_amount',
+                                        ) ??
+                                            (data_get($invoice->metadata, 'decrypted_invoice.payableAmount') ??
+                                                (data_get($invoice->metadata, 'decrypted_invoice.totalAmount') ?? 0)));
+
+                                    $payableAmount =
+                                        $storedPayableAmount > 0 ? $storedPayableAmount : $decryptedPayableAmount;
+                                @endphp
                                 <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                    ₦{{ number_format($invoice->legal_monetary_total['payable_amount'] ?? 0, 2) }}
+                                    ₦{{ number_format((float) $payableAmount, 2) }}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <flux:dropdown position="bottom" align="end">
-                                    <flux:button variant="primary" size="sm" icon="ellipsis-vertical">
-                                        <span class="sr-only">Open menu</span>
-                                    </flux:button>
-
-                                    <flux:menu class="w-48">
-                                        @if ($invoice->transmit !== 'CONFIRMED')
-                                            <flux:menu.item icon="check" class="cursor-pointer"
-                                                wire:click="confirmExchangeInvoice({{ $invoice->id }})">
-                                                {{ __('Confirm Invoice') }}
-                                            </flux:menu.item>
-                                        @endif
-
-                                        <flux:menu.item icon="arrow-down-on-square" class="cursor-pointer"
-                                            wire:click="downloadExchangeInvoice({{ $invoice->id }})">
-                                            {{ __('Download PDF') }}
-                                        </flux:menu.item>
-
-                                        <flux:menu.item icon="eye"
-                                            href="{{ route('invoices.show', $invoice->id) }}">
-                                            {{ __('View Details') }}
-                                        </flux:menu.item>
-                                    </flux:menu>
-                                </flux:dropdown>
+                                <flux:menu.item icon="eye" href="{{ route('invoices.show', $invoice->id) }}">
+                                    {{ __('View') }}
+                                </flux:menu.item>
                             </td>
                         </tr>
                     @empty

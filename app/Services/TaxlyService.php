@@ -82,7 +82,6 @@ class TaxlyService
     /** Taxpayer login */
     public function taxPayerLogin(array $payload): array
     {
-        Log::info('Taxpayer Login', ['url' => $this->baseUrl . '/auth/tax-payer-login']);
         try {
             $res = $this->client()->post('/auth/tax-payer-login', $payload);
             $res->throw();
@@ -184,6 +183,22 @@ class TaxlyService
             throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly confirmTransmittingInvoice error', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    public function updateInvoicePayment(string $irn, string $paymentStatus): array
+    {
+        try {
+            $res = $this->client()->patch("/invoices/{$irn}/update", [
+                'payment_status' => $paymentStatus,
+            ]);
+            $res->throw();
+            return $res->json();
+        } catch (RequestException $e) {
+            throw $this->handleRequestException($e);
+        } catch (Throwable $e) {
+            Log::error('Taxly updateInvoicePayment error', ['error' => $e->getMessage()]);
             throw $e;
         }
     }
