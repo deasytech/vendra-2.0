@@ -29,6 +29,8 @@ class InvoicesIndex extends Component
     public $amount_max = '';
     public $selectedInvoiceId = null;
     public $newPaymentStatus = 'PENDING';
+    public $selectedInvoices = [];
+    public $selectAll = false;
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -99,11 +101,42 @@ class InvoicesIndex extends Component
             'date_to',
             'amount_min',
             'amount_max',
+            'selectedInvoices',
+            'selectAll',
         ]);
         $this->resetPage();
     }
 
-    public function render()
+    public function updatedSelectAll($value)
+    {
+        $invoiceIds = $this->getFilteredInvoicesQuery()
+            ->latest()
+            ->paginate(10)
+            ->pluck('id')
+            ->map(fn($id) => (string) $id)
+            ->toArray();
+
+        if ($value) {
+            $this->selectedInvoices = array_values(array_unique(array_merge($this->selectedInvoices, $invoiceIds)));
+            return;
+        }
+
+        $this->selectedInvoices = array_values(array_diff($this->selectedInvoices, $invoiceIds));
+    }
+
+    public function updatedSelectedInvoices()
+    {
+        $invoiceIds = $this->getFilteredInvoicesQuery()
+            ->latest()
+            ->paginate(10)
+            ->pluck('id')
+            ->map(fn($id) => (string) $id)
+            ->toArray();
+
+        $this->selectAll = !empty($invoiceIds) && count(array_intersect($invoiceIds, $this->selectedInvoices)) === count($invoiceIds);
+    }
+
+    private function getFilteredInvoicesQuery()
     {
         $query = Invoice::with(['customer', 'organization'])
             ->where(function ($q) {
@@ -111,7 +144,6 @@ class InvoicesIndex extends Component
                     ->orWhere('metadata->invoice_flow', '!=', 'incoming');
             });
 
-        // Apply filters
         if ($this->search) {
             $query->where(function ($q) {
                 $q->where('invoice_reference', 'like', '%' . $this->search . '%')
@@ -155,6 +187,12 @@ class InvoicesIndex extends Component
             }
         }
 
+        return $query;
+    }
+
+    public function render()
+    {
+        $query = $this->getFilteredInvoicesQuery();
         $invoices = $query->latest()->paginate(10);
 
         $customers = Customer::orderBy('name')->get();
@@ -205,56 +243,9 @@ class InvoicesIndex extends Component
     {
         try {
             $invoice = Invoice::findOrFail($this->selectedInvoiceId);
-
-            if (empty($invoice->irn)) {
-                $this->dispatch('error', 'This invoice does not have a valid IRN, so payment cannot be updated on FIRS.');
-                return;
-            }
-
-            $allowedStatuses = ['REJECTED', 'PENDING', 'PAID'];
-
-            if (! in_array($this->newPaymentStatus, $allowedStatuses, true)) {
-                $this->dispatch('error', 'Invalid payment status selected.');
-                return;
-            }
-
-            $taxlyTenantId = Setting::getValue('taxly_tenant_id');
-            $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
-
-            if (! $cred) {
-                $this->dispatch('error', 'Taxly credentials not configured. Please complete Taxly setup first.');
-                return;
-            }
-
-            Log::info('Updating invoice payment status on Taxly', [
-                'invoice_id' => $invoice->id,
-                'invoice_reference' => $invoice->invoice_reference,
-                'irn' => $invoice->irn,
-                'payment_status' => $this->newPaymentStatus,
-                'taxly_tenant_id' => $taxlyTenantId,
-                'credential_id' => $cred->id,
-            ]);
-
             $updatedStatus = $this->newPaymentStatus;
 
-            $service = new TaxlyService($cred);
-            $response = $service->updateInvoicePayment($invoice->irn, $updatedStatus);
-
-            $invoice->transmissions()->create([
-                'irn' => $invoice->irn,
-                'action' => 'update_payment',
-                'request_payload' => [
-                    'payment_status' => $updatedStatus,
-                ],
-                'response_payload' => $response,
-                'status' => 'success',
-                'message' => 'Payment status updated successfully on FIRS.',
-                'transmitted_at' => now(),
-            ]);
-
-            $invoice->update([
-                'payment_status' => $updatedStatus,
-            ]);
+            $this->updateInvoicePaymentOnFirs($invoice, $updatedStatus);
 
             $this->selectedInvoiceId = null;
             $this->newPaymentStatus = 'PENDING';
@@ -289,6 +280,101 @@ class InvoicesIndex extends Component
 
             $this->dispatch('error', 'Failed to update payment status: ' . $e->getMessage());
         }
+    }
+
+    public function markSelectedAsPaid()
+    {
+        if (empty($this->selectedInvoices)) {
+            $this->dispatch('error', 'Please select at least one invoice.');
+            return;
+        }
+
+        $invoices = Invoice::whereIn('id', $this->selectedInvoices)->get();
+
+        if ($invoices->isEmpty()) {
+            $this->dispatch('error', 'No valid invoices found for the selected items.');
+            return;
+        }
+
+        $updated = 0;
+        $skipped = [];
+
+        foreach ($invoices as $invoice) {
+            try {
+                if ($invoice->payment_status === 'PAID') {
+                    $skipped[] = "{$invoice->invoice_reference} (already paid)";
+                    continue;
+                }
+
+                $this->updateInvoicePaymentOnFirs($invoice, 'PAID');
+                $updated++;
+            } catch (\Throwable $e) {
+                $skipped[] = "{$invoice->invoice_reference} ({$e->getMessage()})";
+            }
+        }
+
+        $this->selectedInvoices = [];
+        $this->selectAll = false;
+
+        if ($updated > 0 && empty($skipped)) {
+            $this->dispatch('success', "{$updated} invoice(s) were marked as PAID successfully.");
+            return;
+        }
+
+        if ($updated > 0) {
+            $this->dispatch('success', "{$updated} invoice(s) were marked as PAID. Some were skipped: " . implode(', ', $skipped));
+            return;
+        }
+
+        $this->dispatch('error', 'No invoices were updated. ' . implode(', ', $skipped));
+    }
+
+    private function updateInvoicePaymentOnFirs(Invoice $invoice, string $updatedStatus): void
+    {
+        if (empty($invoice->irn)) {
+            throw new \RuntimeException('This invoice does not have a valid IRN, so payment cannot be updated on FIRS.');
+        }
+
+        $allowedStatuses = ['REJECTED', 'PENDING', 'PAID'];
+
+        if (! in_array($updatedStatus, $allowedStatuses, true)) {
+            throw new \RuntimeException('Invalid payment status selected.');
+        }
+
+        $taxlyTenantId = Setting::getValue('taxly_tenant_id');
+        $cred = TaxlyCredential::withoutGlobalScopes()->where('tenant_id', $taxlyTenantId)->first();
+
+        if (! $cred) {
+            throw new \RuntimeException('Taxly credentials not configured. Please complete Taxly setup first.');
+        }
+
+        Log::info('Updating invoice payment status on Taxly', [
+            'invoice_id' => $invoice->id,
+            'invoice_reference' => $invoice->invoice_reference,
+            'irn' => $invoice->irn,
+            'payment_status' => $updatedStatus,
+            'taxly_tenant_id' => $taxlyTenantId,
+            'credential_id' => $cred->id,
+        ]);
+
+        $service = new TaxlyService($cred);
+        $response = $service->updateInvoicePayment($invoice->irn, $updatedStatus);
+
+        $invoice->transmissions()->create([
+            'irn' => $invoice->irn,
+            'action' => 'update_payment',
+            'request_payload' => [
+                'payment_status' => $updatedStatus,
+            ],
+            'response_payload' => $response,
+            'status' => 'success',
+            'message' => 'Payment status updated successfully on FIRS.',
+            'transmitted_at' => now(),
+        ]);
+
+        $invoice->update([
+            'payment_status' => $updatedStatus,
+        ]);
     }
 
     /**

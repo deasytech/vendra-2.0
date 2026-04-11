@@ -97,6 +97,11 @@ class Dashboard extends Component
       $this->totalInvoicesTrend = $this->totalInvoices > 0 ? 'new' : 'neutral';
     }
 
+    if ($this->totalInvoices === 0) {
+      $this->totalInvoicesChange = 0;
+      $this->totalInvoicesTrend = 'neutral';
+    }
+
     // Calculate Pending Invoices
     $this->pendingInvoices = Invoice::where('tenant_id', $tenantId)
       ->where('payment_status', 'PENDING')
@@ -117,6 +122,11 @@ class Dashboard extends Component
       $this->totalCustomersTrend = $this->totalCustomers > 0 ? 'new' : 'neutral';
     }
 
+    if ($this->totalCustomers === 0) {
+      $this->totalCustomersChange = 0;
+      $this->totalCustomersTrend = 'neutral';
+    }
+
     // Calculate Revenue This Month and change
     $this->revenueThisMonth = Invoice::where('tenant_id', $tenantId)
       ->whereMonth('created_at', $now->month)
@@ -134,6 +144,11 @@ class Dashboard extends Component
     } else {
       $this->revenueChange = 0;
       $this->revenueTrend = $this->revenueThisMonth > 0 ? 'new' : 'neutral';
+    }
+
+    if ($this->revenueThisMonth == 0) {
+      $this->revenueChange = 0;
+      $this->revenueTrend = 'neutral';
     }
 
     // Log statistics for debugging

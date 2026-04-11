@@ -84,6 +84,33 @@
         </div>
     </div>
 
+    @if (count($selectedInvoices) > 0)
+        <div
+            class="mb-6 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 md:flex-row md:items-center md:justify-between">
+            <div>
+                <p class="text-sm font-semibold text-blue-900">
+                    {{ count($selectedInvoices) }} invoice{{ count($selectedInvoices) > 1 ? 's' : '' }} selected
+                </p>
+                <p class="text-sm text-blue-700">You can bulk update the selected invoices.</p>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button wire:click="markSelectedAsPaid" wire:loading.attr="disabled"
+                    class="inline-flex items-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Mark selected as paid
+                </button>
+
+                <button wire:click="$set('selectedInvoices', []); $set('selectAll', false)"
+                    class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Clear selection
+                </button>
+            </div>
+        </div>
+    @endif
+
     <!-- Status Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-xl shadow-lg p-4 border-l-4 border-green-500">
@@ -263,6 +290,10 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <input type="checkbox" wire:model.live="selectAll"
+                                class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Reference</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Issue
@@ -284,6 +315,11 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse ($invoices as $invoice)
                         <tr wire:key="invoice-row-{{ $invoice->id }}" class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <input type="checkbox" value="{{ $invoice->id }}"
+                                    wire:model.live="selectedInvoices"
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">{{ $invoice->invoice_reference }}</div>
                             </td>
@@ -402,7 +438,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center">
+                            <td colspan="8" class="px-6 py-12 text-center">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

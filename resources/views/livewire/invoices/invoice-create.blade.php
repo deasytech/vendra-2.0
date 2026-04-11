@@ -254,7 +254,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price
                                 ({{ $selected_currency_symbol }}) *</label>
                             <input type="number" step="0.01"
-                                wire:model.live.debounce.500ms="invoice_lines.{{ $idx }}.price.price_amount"
+                                wire:model.live.debounce="invoice_lines.{{ $idx }}.price.price_amount"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 placeholder="0.00" />
                             @error('invoice_lines.' . $idx . '.price.price_amount')

@@ -66,7 +66,7 @@ class InvoiceCreate extends Component
 
     public $hsn_code, $product_category;
 
-    protected $tax_category_id = 'LOCAL_SALES_TAX';
+    protected $tax_category_id = 'STANDARD_VAT';
 
     protected $rules = [
         'invoice_reference' => 'required|string|max:255',
@@ -633,7 +633,49 @@ class InvoiceCreate extends Component
                                 'tax_amount' => $this->vat_amount,
                                 'tax_category' => [
                                     'id' => $this->tax_category_id,
-                                    'percent' => $this->vat_rate,
+                                    'percent' => (float) $this->vat_rate,
+                                ],
+                            ],
+                        ],
+                    ],
+                    // Withholding tax
+                    [
+                        'tax_amount' => $this->withholding_tax_amount,
+                        'tax_subtotal' => [
+                            [
+                                'taxable_amount' => $this->sub_total,
+                                'tax_amount' => $this->withholding_tax_amount,
+                                'tax_category' => [
+                                    'id' => 'WITHHOLDING_TAX',
+                                    'percent' => (float) $this->withholding_tax_rate,
+                                ],
+                            ],
+                        ],
+                    ],
+                    // Discounts (allowance charges with charge_indicator = false)
+                    [
+                        'tax_amount' => $this->getDiscountAmount(),
+                        'tax_subtotal' => [
+                            [
+                                'taxable_amount' => $this->sub_total,
+                                'tax_amount' => $this->getDiscountAmount(),
+                                'tax_category' => [
+                                    'id' => 'ZERO_VAT',
+                                    'percent' => (float) $this->getDiscountPercentage(),
+                                ],
+                            ],
+                        ],
+                    ],
+                    // Other charges (allowance charges with charge_indicator = true)
+                    [
+                        'tax_amount' => $this->getChargeAmount(),
+                        'tax_subtotal' => [
+                            [
+                                'taxable_amount' => $this->sub_total,
+                                'tax_amount' => $this->getChargeAmount(),
+                                'tax_category' => [
+                                    'id' => 'STANDARD_VAT',
+                                    'percent' => (float) $this->getChargePercentage(),
                                 ],
                             ],
                         ],
@@ -757,7 +799,7 @@ class InvoiceCreate extends Component
                                 'tax_amount' => $this->vat_amount,
                                 'tax_category' => [
                                     'id' => $this->tax_category_id,
-                                    'percent' => $this->vat_rate,
+                                    'percent' => (float) $this->vat_rate,
                                 ],
                             ],
                         ],
@@ -974,5 +1016,68 @@ class InvoiceCreate extends Component
 
         // Fallback to generic message
         return $e->getMessage();
+    }
+
+    // Helper methods for tax_total calculations
+    private function getDiscountAmount(): float
+    {
+        $discountAmount = 0;
+        foreach ($this->allowance_charges as $charge) {
+            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === false) {
+                $amount = (float) ($charge['amount'] ?? 0);
+                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                    $amount = round($this->sub_total * ($amount / 100), 2);
+                }
+                $discountAmount += $amount;
+            }
+        }
+        return round($discountAmount, 2);
+    }
+
+    private function getDiscountPercentage(): float
+    {
+        $totalDiscount = 0;
+        $count = 0;
+        foreach ($this->allowance_charges as $charge) {
+            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === false) {
+                $amount = (float) ($charge['amount'] ?? 0);
+                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                    $totalDiscount += $amount;
+                    $count++;
+                }
+            }
+        }
+        return $count > 0 ? round($totalDiscount / $count, 2) : 0;
+    }
+
+    private function getChargeAmount(): float
+    {
+        $chargeAmount = 0;
+        foreach ($this->allowance_charges as $charge) {
+            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === true) {
+                $amount = (float) ($charge['amount'] ?? 0);
+                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                    $amount = round($this->sub_total * ($amount / 100), 2);
+                }
+                $chargeAmount += $amount;
+            }
+        }
+        return round($chargeAmount, 2);
+    }
+
+    private function getChargePercentage(): float
+    {
+        $totalCharge = 0;
+        $count = 0;
+        foreach ($this->allowance_charges as $charge) {
+            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === true) {
+                $amount = (float) ($charge['amount'] ?? 0);
+                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
+                    $totalCharge += $amount;
+                    $count++;
+                }
+            }
+        }
+        return $count > 0 ? round($totalCharge / $count, 2) : 0;
     }
 }
