@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lite-akraa
+  namespace: akraa
+  labels:
+    app: lite-akraa
+    environment: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: lite-akraa
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: lite-akraa
+    spec:
+      initContainers:
+        - name: copy-files
+          image: registry.digitalocean.com/vendra-registry/lite-akraa:latest
+          command:
+            [
+              "sh",
+              "-c",
+              "cp -r /var/www/* /shared-files/ && chown -R www-data:www-data /shared-files/storage /shared-files/bootstrap/cache",
+            ]
+          volumeMounts:
+            - name: shared-files
+              mountPath: /shared-files
+      containers:
+        - name: app
+          image: registry.digitalocean.com/vendra-registry/lite-akraa:latest
+          ports:
+            - containerPort: 9000
+          envFrom:
+            - configMapRef:
+                name: lite-akraa-config
+            - secretRef:
+                name: lite-akraa-secret
+          env:
+            - name: CONTAINER_ROLE
+              value: "app"
+          volumeMounts:
+            - name: shared-files
+              mountPath: /var/www
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            tcpSocket:
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 2
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: shared-files
+              mountPath: /var/www
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          livenessProbe:
+            httpGet:
+              path: /health/nginx
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health/nginx
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: shared-files
+          emptyDir: {}
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+  namespace: akraa
+spec:
+  selector:
+    app: lite-akraa
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: akraa
+  annotations: {}
+spec:
+  selector:
+    app: lite-akraa
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
