@@ -21,20 +21,29 @@ class UserForm
                     Select::make('organization_id')
                         ->label('Organization')
                         ->options(fn(): array => Organization::query()
+                            ->whereNotNull('legal_name')
+                            ->where('legal_name', '!=', '')
                             ->orderBy('legal_name')
                             ->limit(50)
-                            ->get()
                             ->pluck('legal_name', 'id')
                             ->toArray())
+
                         ->searchable()
+
                         ->getSearchResultsUsing(fn(string $search): array => Organization::query()
+                            ->whereNotNull('legal_name')
+                            ->where('legal_name', '!=', '')
                             ->where('legal_name', 'like', "%{$search}%")
                             ->orderBy('legal_name')
                             ->limit(50)
-                            ->get()
                             ->pluck('legal_name', 'id')
                             ->toArray())
-                        ->getOptionLabelUsing(fn($value): ?string => Organization::query()->find($value)?->legal_name ?? '')
+
+                        ->getOptionLabelUsing(
+                            fn($value): ?string =>
+                            Organization::find($value)?->legal_name ?: 'Unknown Organization'
+                        )
+
                         ->preload(),
                     TextInput::make('mfa'),
                     TextInput::make('name')
