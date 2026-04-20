@@ -34,7 +34,7 @@ class UserForm
                             ->get()
                             ->pluck('legal_name', 'id')
                             ->toArray())
-                        ->getOptionLabelUsing(fn($value): ?string => Organization::query()->find($value)?->legal_name)
+                        ->getOptionLabelUsing(fn($value): ?string => Organization::query()->find($value)?->legal_name ?? '')
                         ->preload(),
                     TextInput::make('mfa'),
                     TextInput::make('name')
