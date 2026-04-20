@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Models\Organization;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -19,8 +20,19 @@ class UserForm
                 Section::make()->schema([
                     Select::make('organization_id')
                         ->label('Organization')
-                        ->relationship('organization', 'legal_name')
+                        ->options(fn(): array => Organization::query()
+                            ->orderBy('legal_name')
+                            ->limit(50)
+                            ->pluck('legal_name', 'id')
+                            ->all())
                         ->searchable()
+                        ->getSearchResultsUsing(fn(string $search): array => Organization::query()
+                            ->where('legal_name', 'like', "%{$search}%")
+                            ->orderBy('legal_name')
+                            ->limit(50)
+                            ->pluck('legal_name', 'id')
+                            ->all())
+                        ->getOptionLabelUsing(fn($value): ?string => Organization::query()->find($value)?->legal_name)
                         ->preload(),
                     TextInput::make('mfa'),
                     TextInput::make('name')
