@@ -46,6 +46,11 @@ class ExchangeInvoiceShow extends Component
 
   public function render()
   {
+    Log::info('Rendering exchange invoice show component', [
+      'invoice_id' => $this->invoice->id,
+      'has_irn' => !empty($this->invoice->irn),
+      'qr_data_uri_generated' => !empty($this->qrDataUri),
+    ]);
     return view('livewire.invoices.exchange-invoice-show', [
       'invoice' => $this->invoice,
       'qrDataUri' => $this->qrDataUri,

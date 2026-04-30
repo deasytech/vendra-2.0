@@ -172,6 +172,22 @@
                                 <span
                                     class="font-mono font-semibold text-zinc-700 dark:text-zinc-300">{{ data_get($invoice->accounting_supplier_party, 'party_tin', data_get($invoice->accounting_supplier_party, 'tin', '-')) }}</span>
                             </div>
+
+                            {{-- Business Registration Number --}}
+                            @if (data_get($invoice->accounting_supplier_party, 'registration_number'))
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-4 h-4 text-zinc-400 dark:text-zinc-500" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span class="text-zinc-600 dark:text-zinc-400">Registration:</span>
+                                    <span
+                                        class="text-zinc-700 dark:text-zinc-300">{{ data_get($invoice->accounting_supplier_party, 'registration_number', '-') }}</span>
+                                </div>
+                            @endif
+
+                            {{-- Email --}}
                             @if (data_get($invoice->accounting_supplier_party, 'email'))
                                 <div class="flex items-center space-x-2">
                                     <svg class="w-4 h-4 text-zinc-400 dark:text-zinc-500" fill="none"
@@ -184,6 +200,8 @@
                                         class="text-zinc-700 dark:text-zinc-300">{{ data_get($invoice->accounting_supplier_party, 'email', '-') }}</span>
                                 </div>
                             @endif
+
+                            {{-- Phone --}}
                             @if (data_get($invoice->accounting_supplier_party, 'telephone'))
                                 <div class="flex items-center space-x-2">
                                     <svg class="w-4 h-4 text-zinc-400 dark:text-zinc-500" fill="none"
@@ -194,6 +212,20 @@
                                     <span class="text-zinc-600 dark:text-zinc-400">Phone:</span>
                                     <span
                                         class="text-zinc-700 dark:text-zinc-300">{{ data_get($invoice->accounting_supplier_party, 'telephone', '-') }}</span>
+                                </div>
+                            @endif
+
+                            {{-- Website --}}
+                            @if (data_get($invoice->accounting_supplier_party, 'website'))
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-4 h-4 text-zinc-400 dark:text-zinc-500" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                    </svg>
+                                    <span class="text-zinc-600 dark:text-zinc-400">Website:</span>
+                                    <span
+                                        class="text-zinc-700 dark:text-zinc-300">{{ data_get($invoice->accounting_supplier_party, 'website', '-') }}</span>
                                 </div>
                             @endif
                         </div>

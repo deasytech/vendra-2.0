@@ -544,7 +544,7 @@ class TaxlyIntegration extends Component
       $payload = [
         'url' => $this->webhookUrl,
         'secret' => $this->webhookSecret,
-        'subscribed_events' => array_values($this->webhookSubscribedEvents),
+        'events' => array_values($this->webhookSubscribedEvents),
       ];
 
       $result = $taxlyService->createWebhook($payload);
@@ -585,7 +585,7 @@ class TaxlyIntegration extends Component
       $payload = [
         'url' => $this->webhookUrl,
         'secret' => $this->webhookSecret,
-        'subscribed_events' => array_values($this->webhookSubscribedEvents),
+        'events' => array_values($this->webhookSubscribedEvents),
       ];
 
       $result = $taxlyService->updateWebhook((string) $this->webhookId, $payload);
