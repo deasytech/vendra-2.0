@@ -355,10 +355,22 @@
             <div
                 class="relative overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Revenue This Month</p>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Revenue This Month</p>
+                            <div class="relative">
+                                <select wire:model="selectedCurrency"
+                                    class="text-xs bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    @foreach ($currencies as $currency)
+                                        <option value="{{ $currency['code'] }}"
+                                            {{ $selectedCurrency === $currency['code'] ? 'selected' : '' }}>
+                                            {{ $currency['code'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
                         <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                            ₦{{ number_format($revenueThisMonth) }}
+                            {{ $currencies[$selectedCurrency]['symbol'] }}{{ number_format($revenueThisMonth) }}
                         </p>
                         <p
                             class="mt-1 text-xs {{ $revenueTrend === 'up' ? 'text-green-600 dark:text-green-400' : ($revenueTrend === 'down' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400') }}">
@@ -398,14 +410,32 @@
                                 @endif
                             </span>
                         </p>
+                        <!-- Currency breakdown -->
+                        <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                @if ($selectedCurrency === 'NGN')
+                                    <span>₦{{ number_format($revenueThisMonthNGN) }} NGN</span>
+                                    @if ($revenueThisMonthUSD > 0)
+                                        <span class="ml-2">(${{ number_format($revenueThisMonthUSD) }} USD not
+                                            included)</span>
+                                    @endif
+                                @else
+                                    <span>${{ number_format($revenueThisMonthUSD) }} USD</span>
+                                    @if ($revenueThisMonthNGN > 0)
+                                        <span class="ml-2">(₦{{ number_format($revenueThisMonthNGN) }} NGN not
+                                            included)</span>
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
                     </div>
-                    <div class="rounded-full bg-purple-100 dark:bg-purple-900/30 p-3">
+                    {{-- <div class="rounded-full bg-purple-100 dark:bg-purple-900/30 p-3">
                         <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none"
                             stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                    </div>
+                    </div> --}}
                 </div>
             </div>
         </div>
@@ -463,7 +493,7 @@
                                 </div>
                                 <div class="text-right">
                                     <p class="text-sm font-medium text-gray-900 dark:text-white">
-                                        ₦{{ number_format($invoice->legal_monetary_total['payable_amount'] ?? 0) }}
+                                        {{ $invoice->document_currency_code === 'NGN' ? '₦' : '$' }}{{ number_format($invoice->legal_monetary_total['payable_amount'] ?? 0) }}
                                     </p>
                                 </div>
                             </div>

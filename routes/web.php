@@ -5,6 +5,7 @@ use App\Livewire\Customers\CustomerEdit;
 use App\Livewire\Customers\CustomersIndex;
 use App\Livewire\Dashboard;
 use App\Livewire\Invoices\ExchangeInvoices;
+use App\Livewire\Invoices\ExchangeInvoiceShow;
 use App\Livewire\Invoices\InvoiceCreate;
 use App\Livewire\Invoices\InvoiceEdit;
 use App\Livewire\Invoices\InvoiceShow;
@@ -56,6 +57,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customers/{customer}/edit', CustomerEdit::class)->name('customers.edit');
     Route::get('/invoice-exchange', TransmittedInvoices::class)->name('invoice-exchange');
     Route::get('/exchange-invoices', ExchangeInvoices::class)->name('exchange-invoices');
+    Route::get('/exchange-invoices/{invoice}', ExchangeInvoiceShow::class)->name('exchange-invoice.show');
 });
 
 require __DIR__ . '/auth.php';

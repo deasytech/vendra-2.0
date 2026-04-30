@@ -230,9 +230,10 @@
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900 dark:text-white">
-                                    {{ $invoice->customer?->name ?? 'Unknown' }}</div>
+                                    {{ data_get($invoice->accounting_supplier_party, 'party_name', 'Unknown') }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">
-                                    {{ $invoice->customer?->tin ?? '' }}</div>
+                                    {{ data_get($invoice->accounting_supplier_party, 'party_tin', data_get($invoice->accounting_supplier_party, 'tin', '')) }}
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900 dark:text-white font-mono">
@@ -264,13 +265,14 @@
                                         $storedPayableAmount > 0 ? $storedPayableAmount : $decryptedPayableAmount;
                                 @endphp
                                 <div class="text-sm font-medium text-gray-900 dark:text-white">
-                                    ₦{{ number_format((float) $payableAmount, 2) }}
+                                    {{ $invoice->document_currency_code === 'NGN' ? '₦' : '$' }}{{ number_format((float) $payableAmount, 2) }}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <flux:menu.item icon="eye" href="{{ route('invoices.show', $invoice->id) }}">
-                                    {{ __('View') }}
-                                </flux:menu.item>
+                                <a href="{{ route('exchange-invoice.show', $invoice->id) }}"
+                                    class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
+                                    View
+                                </a>
                             </td>
                         </tr>
                     @empty

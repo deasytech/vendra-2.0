@@ -27536,6 +27536,10 @@ namespace App\Livewire\Invoices {
      */
     class ExchangeInvoices extends \Livewire\Component {
             }
+    /**
+     */
+    class ExchangeInvoiceShow extends \Livewire\Component {
+            }
     }
 
 namespace App\Livewire\Customers {

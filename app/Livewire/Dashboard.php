@@ -38,6 +38,18 @@ class Dashboard extends Component
   public $revenueChange = 0;
   public $revenueTrend = 'neutral';
 
+  // Currency switching
+  public $selectedCurrency = 'NGN';
+  public $revenueThisMonthUSD = 0;
+  public $revenueThisMonthNGN = 0;
+  public $exchangeRate = 1500; // Default exchange rate: 1 USD = 1500 NGN
+
+  // Available currencies
+  public $currencies = [
+    'NGN' => ['code' => 'NGN', 'symbol' => '₦', 'name' => 'Nigerian Naira'],
+    'USD' => ['code' => 'USD', 'symbol' => '$', 'name' => 'US Dollar'],
+  ];
+
   public function mount()
   {
     $this->organization = Auth::user()->organization;
@@ -127,16 +139,36 @@ class Dashboard extends Component
       $this->totalCustomersTrend = 'neutral';
     }
 
-    // Calculate Revenue This Month and change
-    $this->revenueThisMonth = Invoice::where('tenant_id', $tenantId)
+    // Calculate Revenue This Month for both NGN and USD
+    $this->revenueThisMonthNGN = Invoice::where('tenant_id', $tenantId)
+      ->where('document_currency_code', 'NGN')
       ->whereMonth('created_at', $now->month)
       ->whereYear('created_at', $now->year)
       ->sum('legal_monetary_total->payable_amount') ?? 0;
 
-    $lastMonthRevenue = Invoice::where('tenant_id', $tenantId)
+    $this->revenueThisMonthUSD = Invoice::where('tenant_id', $tenantId)
+      ->where('document_currency_code', 'USD')
+      ->whereMonth('created_at', $now->month)
+      ->whereYear('created_at', $now->year)
+      ->sum('legal_monetary_total->payable_amount') ?? 0;
+
+    // Calculate total revenue in the selected currency
+    $this->revenueThisMonth = $this->getRevenueInSelectedCurrency();
+
+    // Calculate last month revenue for trend analysis (in NGN)
+    $lastMonthRevenueNGN = Invoice::where('tenant_id', $tenantId)
+      ->where('document_currency_code', 'NGN')
       ->whereMonth('created_at', $now->copy()->subMonth()->month)
       ->whereYear('created_at', $now->copy()->subMonth()->year)
       ->sum('legal_monetary_total->payable_amount') ?? 0;
+
+    $lastMonthRevenueUSD = Invoice::where('tenant_id', $tenantId)
+      ->where('document_currency_code', 'USD')
+      ->whereMonth('created_at', $now->copy()->subMonth()->month)
+      ->whereYear('created_at', $now->copy()->subMonth()->year)
+      ->sum('legal_monetary_total->payable_amount') ?? 0;
+
+    $lastMonthRevenue = $lastMonthRevenueNGN + ($lastMonthRevenueUSD * $this->exchangeRate);
 
     if ($lastMonthRevenue > 0) {
       $this->revenueChange = round((($this->revenueThisMonth - $lastMonthRevenue) / $lastMonthRevenue) * 100);
@@ -242,6 +274,25 @@ class Dashboard extends Component
   public function closeModal()
   {
     $this->showOrganizationModal = false;
+  }
+
+  public function updatedSelectedCurrency()
+  {
+    logger()->info('Currency dropdown changed', [
+      'selectedCurrency' => $this->selectedCurrency,
+      'revenueThisMonthNGN' => $this->revenueThisMonthNGN,
+      'revenueThisMonthUSD' => $this->revenueThisMonthUSD,
+    ]);
+    $this->calculateStatistics();
+  }
+
+  public function getRevenueInSelectedCurrency()
+  {
+    if ($this->selectedCurrency === 'NGN') {
+      return $this->revenueThisMonthNGN;
+    } else {
+      return $this->revenueThisMonthUSD;
+    }
   }
 
   public function render()
