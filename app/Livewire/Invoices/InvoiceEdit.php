@@ -533,24 +533,25 @@ class InvoiceEdit extends Component
             $taxable = 0;
         }
 
-        // Apply VAT to the base taxable amount (without considering WHT and NCD)
-        $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
+        // Calculate taxes on the original subtotal (before discounts)
+        $this->vat_amount = round($this->sub_total * ($this->vat_rate / 100), 2);
 
-        // Apply NCD tax if enabled (on taxable amount only, excluding VAT)
+        // Apply NCD tax if enabled (on original subtotal)
         if ($this->ncd_tax_enabled) {
-            $this->ncd_tax_amount = round($taxable * ($this->ncd_tax_rate / 100), 2);
+            $this->ncd_tax_amount = round($this->sub_total * ($this->ncd_tax_rate / 100), 2);
         } else {
             $this->ncd_tax_amount = 0;
         }
 
-        // Apply withholding tax if enabled (on taxable amount only, excluding VAT)
+        // Apply withholding tax if enabled (on original subtotal)
         if ($this->withholding_tax_enabled) {
-            $this->withholding_tax_amount = round($taxable * ($this->withholding_tax_rate / 100), 2);
+            $this->withholding_tax_amount = round($this->sub_total * ($this->withholding_tax_rate / 100), 2);
         } else {
             $this->withholding_tax_amount = 0;
         }
 
-        // Calculate final total: taxable + VAT - WHT - NCD
+        // Calculate final total: discounted taxable amount + taxes - taxes
+        // This ensures discounts apply to the merchandise only, not affecting tax calculations
         $this->total_amount = round($taxable + $this->vat_amount - $this->withholding_tax_amount - $this->ncd_tax_amount, 2);
 
         $this->legal_monetary_total = [
