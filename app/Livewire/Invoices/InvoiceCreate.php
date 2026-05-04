@@ -64,6 +64,13 @@ class InvoiceCreate extends Component
     public $ncd_tax_enabled = false;
     public $ncd_tax_amount = 0;
 
+    // Tax calculation mode
+    public $tax_calculation_mode = 'standard'; // 'standard' or 'oil_sector'
+    public $tax_modes = [
+        'standard' => 'Standard (Discounts affect tax base)',
+        'oil_sector' => 'Oil Sector (Taxes on original amount)'
+    ];
+
     // Dynamic data
     public $invoice_types = [];
     public $currencies = [];
@@ -390,25 +397,38 @@ class InvoiceCreate extends Component
             $taxable = 0;
         }
 
-        // Calculate taxes on the original subtotal (before discounts)
-        $this->vat_amount = round($this->sub_total * ($this->vat_rate / 100), 2);
+        // Calculate taxes based on selected mode
+        if ($this->tax_calculation_mode === 'oil_sector') {
+            // Oil sector mode: Calculate taxes on original subtotal (before discounts)
+            $this->vat_amount = round($this->sub_total * ($this->vat_rate / 100), 2);
 
-        // Apply NCD tax if enabled (on original subtotal)
-        if ($this->ncd_tax_enabled) {
-            $this->ncd_tax_amount = round($this->sub_total * ($this->ncd_tax_rate / 100), 2);
+            if ($this->ncd_tax_enabled) {
+                $this->ncd_tax_amount = round($this->sub_total * ($this->ncd_tax_rate / 100), 2);
+            } else {
+                $this->ncd_tax_amount = 0;
+            }
+
+            if ($this->withholding_tax_enabled) {
+                $this->withholding_tax_amount = round($this->sub_total * ($this->withholding_tax_rate / 100), 2);
+            } else {
+                $this->withholding_tax_amount = 0;
+            }
         } else {
+            // Standard mode: Calculate taxes on discounted amount (after discounts)
+            $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
+
+            // NCD tax is only available in oil sector mode
             $this->ncd_tax_amount = 0;
+            $this->ncd_tax_enabled = false;
+
+            if ($this->withholding_tax_enabled) {
+                $this->withholding_tax_amount = round($taxable * ($this->withholding_tax_rate / 100), 2);
+            } else {
+                $this->withholding_tax_amount = 0;
+            }
         }
 
-        // Apply withholding tax if enabled (on original subtotal)
-        if ($this->withholding_tax_enabled) {
-            $this->withholding_tax_amount = round($this->sub_total * ($this->withholding_tax_rate / 100), 2);
-        } else {
-            $this->withholding_tax_amount = 0;
-        }
-
-        // Calculate final total: discounted taxable amount + taxes - taxes
-        // This ensures discounts apply to the merchandise only, not affecting tax calculations
+        // Calculate final total: taxable amount + taxes - taxes
         $this->total_amount = round($taxable + $this->vat_amount - $this->withholding_tax_amount - $this->ncd_tax_amount, 2);
 
         $this->legal_monetary_total = [

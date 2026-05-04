@@ -95,6 +95,23 @@
                     @endforeach
                 </select>
             </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tax Calculation Mode</label>
+                <select wire:model.live="tax_calculation_mode"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
+                    @foreach ($tax_modes as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-500 mt-1">
+                    @if ($tax_calculation_mode === 'standard')
+                        Taxes calculated on discounted amount (standard practice)
+                    @else
+                        Taxes calculated on original amount (oil sector practice)
+                    @endif
+                </p>
+            </div>
         </div>
     </div>
 
@@ -398,29 +415,31 @@
         </div>
     </div>
 
-    <!-- NCD Tax Section -->
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-            <svg class="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Nigeria Customs Duty (NCD)
-        </h2>
+    <!-- NCD Tax Section (Only visible in Oil Sector mode) -->
+    @if ($tax_calculation_mode === 'oil_sector')
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Nigeria Customs Duty (NCD)
+            </h2>
 
-        <div class="flex items-center space-x-4">
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" wire:model.live="ncd_tax_enabled" class="mr-2 rounded">
-                <span class="text-gray-700">Apply NCD Tax</span>
-            </label>
-            @if ($ncd_tax_enabled)
-                <span class="text-sm text-gray-600">
-                    ({{ $ncd_tax_rate }}% of total:
-                    {{ $selected_currency_symbol }}{{ number_format($ncd_tax_amount, 2) }})
-                </span>
-            @endif
+            <div class="flex items-center space-x-4">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" wire:model.live="ncd_tax_enabled" class="mr-2 rounded">
+                    <span class="text-gray-700">Apply NCD Tax</span>
+                </label>
+                @if ($ncd_tax_enabled)
+                    <span class="text-sm text-gray-600">
+                        ({{ $ncd_tax_rate }}% of total:
+                        {{ $selected_currency_symbol }}{{ number_format($ncd_tax_amount, 2) }})
+                    </span>
+                @endif
+            </div>
         </div>
-    </div>
+    @endif
 
     <!-- Totals Section -->
     <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
