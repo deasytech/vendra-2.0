@@ -254,7 +254,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price
                                 ({{ $selected_currency_symbol }}) *</label>
                             <input type="number" step="0.01"
-                                wire:model.live.debounce="invoice_lines.{{ $idx }}.price.price_amount"
+                                wire:model.blur="invoice_lines.{{ $idx }}.price.price_amount"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 placeholder="0.00" />
                             @error('invoice_lines.' . $idx . '.price.price_amount')
@@ -398,6 +398,30 @@
         </div>
     </div>
 
+    <!-- NCD Tax Section -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Nigeria Customs Duty (NCD)
+        </h2>
+
+        <div class="flex items-center space-x-4">
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" wire:model.live="ncd_tax_enabled" class="mr-2 rounded">
+                <span class="text-gray-700">Apply NCD Tax</span>
+            </label>
+            @if ($ncd_tax_enabled)
+                <span class="text-sm text-gray-600">
+                    ({{ $ncd_tax_rate }}% of total:
+                    {{ $selected_currency_symbol }}{{ number_format($ncd_tax_amount, 2) }})
+                </span>
+            @endif
+        </div>
+    </div>
+
     <!-- Totals Section -->
     <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
         <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
@@ -413,11 +437,6 @@
                 <span class="text-gray-600">Subtotal:</span>
                 <span
                     class="font-semibold text-gray-700">{{ $selected_currency_symbol }}{{ number_format($sub_total, 2) }}</span>
-            </div>
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-gray-600">VAT:</span>
-                <span
-                    class="font-semibold text-gray-700">{{ $selected_currency_symbol }}{{ number_format($vat_amount, 2) }}</span>
             </div>
             @if (count($allowance_charges) > 0)
                 @foreach ($allowance_charges as $c)
@@ -449,6 +468,18 @@
                         class="font-semibold text-red-600">-{{ $selected_currency_symbol }}{{ number_format($withholding_tax_amount, 2) }}</span>
                 </div>
             @endif
+            @if ($ncd_tax_enabled)
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-gray-600">Nigeria Customs Duty ({{ $ncd_tax_rate }}%):</span>
+                    <span
+                        class="font-semibold text-orange-600">-{{ $selected_currency_symbol }}{{ number_format($ncd_tax_amount, 2) }}</span>
+                </div>
+            @endif
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-gray-600">VAT (applied to base price):</span>
+                <span
+                    class="font-semibold text-gray-700">{{ $selected_currency_symbol }}{{ number_format($vat_amount, 2) }}</span>
+            </div>
             <div class="border-t pt-2 flex justify-between items-center">
                 <span class="text-lg font-semibold text-gray-800">Total:</span>
                 <span

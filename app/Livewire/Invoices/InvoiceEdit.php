@@ -60,6 +60,11 @@ class InvoiceEdit extends Component
     public $total_amount = 0;
     public $withholding_tax_amount = 0;
 
+    // NCD (Nigeria Customs Duty) tax
+    public $ncd_tax_rate = 1.0; // 1% NCD default
+    public $ncd_tax_enabled = false;
+    public $ncd_tax_amount = 0;
+
     // Dynamic data
     public $invoice_types = [];
     public $currencies = [];
@@ -161,8 +166,8 @@ class InvoiceEdit extends Component
                 $taxCategory = $subtotal['tax_category'] ?? null;
                 $taxPercentage = $subtotal['tax_percentage'] ?? null;
                 if ($taxCategory && $taxPercentage !== null) {
-                    // Map percentage to tax code
-                    $taxCodeMap[(float) $taxPercentage] = $taxCategory;
+                    // Map percentage to tax code (use string key for float value)
+                    $taxCodeMap[(string) (float) $taxPercentage] = $taxCategory;
                 }
             }
         }
@@ -258,6 +263,19 @@ class InvoiceEdit extends Component
 
         if (array_key_exists('withholding_tax_amount', $metadata)) {
             $this->withholding_tax_amount = (float) $metadata['withholding_tax_amount'];
+        }
+
+        // Load NCD tax data from metadata
+        if (array_key_exists('ncd_tax_enabled', $metadata)) {
+            $this->ncd_tax_enabled = (bool) $metadata['ncd_tax_enabled'];
+        }
+
+        if (array_key_exists('ncd_tax_rate', $metadata)) {
+            $this->ncd_tax_rate = (float) $metadata['ncd_tax_rate'];
+        }
+
+        if (array_key_exists('ncd_tax_amount', $metadata)) {
+            $this->ncd_tax_amount = (float) $metadata['ncd_tax_amount'];
         }
     }
 
@@ -515,18 +533,25 @@ class InvoiceEdit extends Component
             $taxable = 0;
         }
 
-        // Use the accumulated VAT from lines instead of fixed rate
-        $this->vat_amount = round($totalVat, 2);
-        $this->total_amount = round($taxable + $this->vat_amount, 2);
+        // Apply VAT to the base taxable amount (without considering WHT and NCD)
+        $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
+
+        // Apply NCD tax if enabled (on taxable amount only, excluding VAT)
+        if ($this->ncd_tax_enabled) {
+            $this->ncd_tax_amount = round($taxable * ($this->ncd_tax_rate / 100), 2);
+        } else {
+            $this->ncd_tax_amount = 0;
+        }
 
         // Apply withholding tax if enabled (on taxable amount only, excluding VAT)
         if ($this->withholding_tax_enabled) {
             $this->withholding_tax_amount = round($taxable * ($this->withholding_tax_rate / 100), 2);
-            $this->total_amount = round($taxable + $this->vat_amount - $this->withholding_tax_amount, 2);
         } else {
             $this->withholding_tax_amount = 0;
-            $this->total_amount = round($taxable + $this->vat_amount, 2);
         }
+
+        // Calculate final total: taxable + VAT - WHT - NCD
+        $this->total_amount = round($taxable + $this->vat_amount - $this->withholding_tax_amount - $this->ncd_tax_amount, 2);
 
         $this->legal_monetary_total = [
             'tax_exclusive_amount' => $taxable,
@@ -977,6 +1002,9 @@ class InvoiceEdit extends Component
             'withholding_tax_enabled' => (bool) $this->withholding_tax_enabled,
             'withholding_tax_rate' => (float) $this->withholding_tax_rate,
             'withholding_tax_amount' => (float) $this->withholding_tax_amount,
+            'ncd_tax_enabled' => (bool) $this->ncd_tax_enabled,
+            'ncd_tax_rate' => (float) $this->ncd_tax_rate,
+            'ncd_tax_amount' => (float) $this->ncd_tax_amount,
         ];
     }
 
