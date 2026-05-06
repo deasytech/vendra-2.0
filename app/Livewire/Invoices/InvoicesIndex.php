@@ -669,12 +669,21 @@ class InvoicesIndex extends Component
 
             if (isset($invoice)) {
                 try {
-                    $invoice->transmissions()->create([
-                        'action' => 'submit',
-                        'request_payload' => $payload ?? null,
-                        'response_payload' => ['error' => $e->getMessage()],
-                        'status' => 'failure'
-                    ]);
+                    $invoiceExists = Invoice::where('id', $invoice->id)->exists();
+
+                    if ($invoiceExists) {
+                        $invoice->transmissions()->create([
+                            'action' => 'submit',
+                            'request_payload' => $payload ?? null,
+                            'response_payload' => ['error' => $e->getMessage()],
+                            'status' => 'failure'
+                        ]);
+                    } else {
+                        Log::warning('Cannot record draft submission failure: invoice no longer exists', [
+                            'invoice_id' => $invoice->id ?? null,
+                            'invoice_reference' => $invoice->invoice_reference ?? null,
+                        ]);
+                    }
                 } catch (\Throwable $inner) {
                     Log::error('Failed to record submission error', [
                         'invoice_id' => $invoice->id ?? null,

@@ -59,11 +59,6 @@ class InvoiceCreate extends Component
     public $total_amount = 0;
     public $withholding_tax_amount = 0;
 
-    // NCD (Nigeria Customs Duty) tax
-    public $ncd_tax_rate = 1.0; // 1% NCD default
-    public $ncd_tax_enabled = false;
-    public $ncd_tax_amount = 0;
-
     // Tax calculation mode
     public $tax_calculation_mode = 'standard'; // 'standard' or 'oil_sector'
     public $tax_modes = [
@@ -402,12 +397,6 @@ class InvoiceCreate extends Component
             // Oil sector mode: Calculate taxes on original subtotal (before discounts)
             $this->vat_amount = round($this->sub_total * ($this->vat_rate / 100), 2);
 
-            if ($this->ncd_tax_enabled) {
-                $this->ncd_tax_amount = round($this->sub_total * ($this->ncd_tax_rate / 100), 2);
-            } else {
-                $this->ncd_tax_amount = 0;
-            }
-
             if ($this->withholding_tax_enabled) {
                 $this->withholding_tax_amount = round($this->sub_total * ($this->withholding_tax_rate / 100), 2);
             } else {
@@ -417,10 +406,6 @@ class InvoiceCreate extends Component
             // Standard mode: Calculate taxes on discounted amount (after discounts)
             $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
 
-            // NCD tax is only available in oil sector mode
-            $this->ncd_tax_amount = 0;
-            $this->ncd_tax_enabled = false;
-
             if ($this->withholding_tax_enabled) {
                 $this->withholding_tax_amount = round($taxable * ($this->withholding_tax_rate / 100), 2);
             } else {
@@ -429,7 +414,7 @@ class InvoiceCreate extends Component
         }
 
         // Calculate final total: taxable amount + taxes - taxes
-        $this->total_amount = round($taxable + $this->vat_amount - $this->withholding_tax_amount - $this->ncd_tax_amount, 2);
+        $this->total_amount = round($taxable + $this->vat_amount - $this->withholding_tax_amount, 2);
 
         $this->legal_monetary_total = [
             'tax_exclusive_amount' => $taxable,
@@ -572,12 +557,21 @@ class InvoiceCreate extends Component
 
             if (!empty($invoice ?? null)) {
                 try {
-                    $invoice->transmissions()->create([
-                        'action' => 'draft_created',
-                        'request_payload' => ['message' => 'Failed to save draft'],
-                        'response_payload' => ['error' => $readableError],
-                        'status' => 'failure'
-                    ]);
+                    // Check if invoice still exists in database after potential rollback
+                    $invoiceExists = Invoice::where('id', $invoice->id)->exists();
+                    if ($invoiceExists) {
+                        $invoice->transmissions()->create([
+                            'action' => 'draft_created',
+                            'request_payload' => ['message' => 'Failed to save draft'],
+                            'response_payload' => ['error' => $readableError],
+                            'status' => 'failure'
+                        ]);
+                    } else {
+                        Log::warning('Cannot create draft transmission record: Invoice no longer exists after rollback', [
+                            'invoice_id' => $invoice->id ?? null,
+                            'invoice_reference' => $invoice->invoice_reference ?? null,
+                        ]);
+                    }
                 } catch (Throwable $inner) {
                     Log::error('Failed to store draft creation failure: ' . $inner->getMessage());
                 }
@@ -699,20 +693,6 @@ class InvoiceCreate extends Component
                             ],
                         ],
                     ],
-                    // NCD tax (Nigeria Customs Duty)
-                    [
-                        'tax_amount' => $this->ncd_tax_amount,
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->ncd_tax_amount,
-                                'tax_category' => [
-                                    'id' => 'NCD_TAX',
-                                    'percent' => (float) $this->ncd_tax_rate,
-                                ],
-                            ],
-                        ],
-                    ],
                     // Other charges (allowance charges with charge_indicator = true)
                     [
                         'tax_amount' => $this->getChargeAmount(),
@@ -774,12 +754,21 @@ class InvoiceCreate extends Component
 
             if (!empty($invoice ?? null)) {
                 try {
-                    $invoice->transmissions()->create([
-                        'action' => 'submit',
-                        'request_payload' => $payload ?? null,
-                        'response_payload' => ['error' => $readableError],
-                        'status' => 'failure'
-                    ]);
+                    // Check if invoice still exists in database after potential rollback
+                    $invoiceExists = Invoice::where('id', $invoice->id)->exists();
+                    if ($invoiceExists) {
+                        $invoice->transmissions()->create([
+                            'action' => 'submit',
+                            'request_payload' => $payload ?? null,
+                            'response_payload' => ['error' => $readableError],
+                            'status' => 'failure'
+                        ]);
+                    } else {
+                        Log::warning('Cannot create transmission record: Invoice no longer exists after rollback', [
+                            'invoice_id' => $invoice->id ?? null,
+                            'invoice_reference' => $invoice->invoice_reference ?? null
+                        ]);
+                    }
                 } catch (Throwable $inner) {
                     Log::error('Failed to store submission failure: ' . $inner->getMessage());
                 }
@@ -1019,9 +1008,6 @@ class InvoiceCreate extends Component
             'withholding_tax_enabled' => (bool) $this->withholding_tax_enabled,
             'withholding_tax_rate' => (float) $this->withholding_tax_rate,
             'withholding_tax_amount' => (float) $this->withholding_tax_amount,
-            'ncd_tax_enabled' => (bool) $this->ncd_tax_enabled,
-            'ncd_tax_rate' => (float) $this->ncd_tax_rate,
-            'ncd_tax_amount' => (float) $this->ncd_tax_amount,
         ];
     }
 
