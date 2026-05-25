@@ -640,6 +640,7 @@ class InvoiceCreate extends Component
                 'document_currency_code' => $this->document_currency_code,
                 'tax_currency_code' => $this->document_currency_code,
                 'payment_status' => 'PENDING',
+                'invoice_kind' => 'B2C',
                 'accounting_supplier_party' => $this->supplier,
                 'legal_monetary_total' => $this->legal_monetary_total,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly(),
@@ -713,6 +714,7 @@ class InvoiceCreate extends Component
             // Only include customer party if customer is selected
             if ($this->customer_id || !empty($this->customer['party_name'])) {
                 $payload['accounting_customer_party'] = $this->customer;
+                $payload['invoice_kind'] = 'B2B';
             }
 
             Log::debug('Invoice submission payload', ['payload' => $payload]);
@@ -816,6 +818,7 @@ class InvoiceCreate extends Component
                 'tax_currency_code' => $this->document_currency_code, // Required field
                 'payment_status' => 'PENDING', // Required field
                 'accounting_supplier_party' => $this->supplier,
+                'invoice_type' => 'B2C',
                 'legal_monetary_total' => $this->legal_monetary_total,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly(),
                 // Add required fields for validation
@@ -846,6 +849,7 @@ class InvoiceCreate extends Component
             // Only include customer party if customer is selected
             if ($this->customer_id || !empty($this->customer['party_name'])) {
                 $payload['accounting_customer_party'] = $this->customer;
+                $payload['invoice_kind'] = 'B2B';
             }
             Log::debug('Invoice validation payload', ['payload' => $payload]);
             // call Taxly service for validation
