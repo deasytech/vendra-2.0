@@ -1,0 +1,165 @@
+name: Deploy Akraa (v-lite)
+
+on:
+  push:
+    tags:
+      - "v-lite*"
+
+env:
+  REGISTRY: registry.digitalocean.com/vendra-registry
+  IMAGE_NAME: lite-akraa
+  NAMESPACE: akraa
+  DEPLOYMENT_NAME: lite-akraa
+  APP_HOST: lite.akraa.io
+
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  # Job 1 – Build & push the Docker image
+  # ────────────────────────────────────────────────────────────────
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract tag name
+        id: meta
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "📦  Image tag: ${TAG}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 1200
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/php/Dockerfile
+          push: true
+          # Tag with both the semver tag and :latest so rollbacks are easy
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          platforms: linux/amd64
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+  # ────────────────────────────────────────────────────────────────
+  # Job 2 – Deploy to Kubernetes (akraa namespace)
+  # ────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Akraa (K8s)
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: akraa
+      url: https://${{ env.APP_HOST }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Configure kubectl
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.CLUSTER_ID }}
+
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      # ── Apply manifests ──────────────────────────────────────────
+      - name: Apply Kubernetes manifests (akraa)
+        run: |
+          # Ensure namespace exists first
+          kubectl apply -f k8s/environments/akraa/secret.yaml
+          kubectl apply -f k8s/environments/akraa/configmap.yaml
+          kubectl apply -f k8s/environments/akraa/nginx-config.yaml
+          kubectl apply -f k8s/environments/akraa/app.yaml
+          kubectl apply -f k8s/environments/akraa/ingress.yaml
+
+      # ── Update image tag in the running deployment ───────────────
+      - name: Set image to new tag
+        run: |
+          TAG="${{ needs.build.outputs.image_tag }}"
+          kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
+            app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG} \
+            -n ${{ env.NAMESPACE }}
+
+          # Also update the initContainer image
+          kubectl set image deployment/${{ env.DEPLOYMENT_NAME }} \
+            copy-files=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG} \
+            -n ${{ env.NAMESPACE }}
+
+      # ── Wait for rollout ─────────────────────────────────────────
+      - name: Wait for rollout to complete
+        run: |
+          kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} \
+            -n ${{ env.NAMESPACE }} --timeout=300s
+
+      # ── Database migrations ──────────────────────────────────────
+      - name: Run database migrations
+        run: |
+          POD=$(kubectl get pod \
+            -n ${{ env.NAMESPACE }} \
+            -l app=${{ env.DEPLOYMENT_NAME }} \
+            --field-selector=status.phase=Running \
+            -o jsonpath="{.items[0].metadata.name}")
+
+          echo "Running migrations in pod: ${POD}"
+          kubectl exec -n ${{ env.NAMESPACE }} "${POD}" -c app \
+            -- php artisan migrate --force
+        continue-on-error: true  # Never block a deploy on migration failure; investigate separately
+
+      # ── Deployment summary ───────────────────────────────────────
+      - name: Verify deployment
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          echo ""
+          echo "=== Services ==="
+          kubectl get services -n ${{ env.NAMESPACE }}
+          echo ""
+          echo "=== Ingress ==="
+          kubectl get ingress -n ${{ env.NAMESPACE }}
+
+      - name: Write job summary
+        if: always()
+        run: |
+          TAG="${{ needs.build.outputs.image_tag }}"
+          {
+            echo "## 🚀 Akraa Deployment – ${TAG}"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| **Tag** | \`${TAG}\` |"
+            echo "| **Image** | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}\` |"
+            echo "| **Namespace** | \`${{ env.NAMESPACE }}\` |"
+            echo "| **Deployment** | \`${{ env.DEPLOYMENT_NAME }}\` |"
+            echo "| **URL** | https://${{ env.APP_HOST }} |"
+            echo "| **Commit** | \`${{ github.sha }}\` |"
+            echo ""
+            echo "### Pod Status"
+            echo '```'
+            kubectl get pods -n ${{ env.NAMESPACE }}
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

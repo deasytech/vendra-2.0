@@ -128,3 +128,73 @@ Update environment variables in [k8s/secret.yaml](../k8s/secret.yaml), then:
 kubectl apply -f k8s/secret.yaml
 kubectl rollout restart deployment/vendra-app -n vendra
 ```
+
+---
+
+## Akraa Environment (`deploy-akraa.yml`)
+
+The `deploy-akraa.yml` workflow is dedicated to the **akraa** environment and is triggered exclusively by **git tags** matching the `v-lite*` prefix.
+
+### Trigger
+
+```bash
+# Create and push a release tag
+git tag v-lite-1.0.0
+git push origin v-lite-1.0.0
+
+# Example hotfix
+git tag v-lite-1.0.1-hotfix
+git push origin v-lite-1.0.1-hotfix
+```
+
+No branch pushes will trigger this workflow — only qualifying tags.
+
+### Pipeline stages
+
+```
+push tag v-lite*
+    │
+    ▼
+[build] ─────────────────────────────────────────────────────────►  [deploy]
+  checkout                                                              checkout
+  docker buildx                                                         doctl + kubectl configure
+  doctl login → DO registry                                             kubectl apply (akraa manifests)
+  docker build + push                                                   kubectl set image (versioned tag)
+    ├── :v-lite-x.y.z                                                   kubectl rollout status (timeout 5 min)
+    └── :latest                                                         php artisan migrate --force
+                                                                        job summary → GitHub
+```
+
+### Required secret (in addition to existing `DIGITALOCEAN_ACCESS_TOKEN` / `CLUSTER_ID`)
+
+No new secrets are required. The workflow reuses the same two repository secrets.
+
+### Required GitHub Environment
+
+The `deploy` job is pinned to the `akraa` GitHub Environment which provides deployment tracking and optional protection rules:
+
+1. **Settings → Environments → New environment**
+2. Name it **`akraa`**
+3. Optionally add required reviewers or a deployment branch policy
+
+### Image
+
+| Container | Image |
+|-----------|-------|
+| `app` (PHP-FPM) + `copy-files` initContainer | `registry.digitalocean.com/vendra-registry/lite-akraa:<tag>` |
+
+Both containers are updated to the same versioned tag so they stay in sync.
+
+### Rollback
+
+```bash
+# Point to a previous tag
+doctl kubernetes cluster kubeconfig save <CLUSTER_ID>
+
+kubectl set image deployment/lite-akraa \
+  app=registry.digitalocean.com/vendra-registry/lite-akraa:v-lite-x.y.z \
+  copy-files=registry.digitalocean.com/vendra-registry/lite-akraa:v-lite-x.y.z \
+  -n akraa
+
+kubectl rollout status deployment/lite-akraa -n akraa
+```
