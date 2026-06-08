@@ -522,11 +522,12 @@ class InvoiceEdit extends Component
             $taxable = 0;
         }
 
-        // Calculate taxes based on selected mode
+        // Use the per-line VAT total that respects individual line tax types (including Zero VAT)
+        $this->vat_amount = $totalVat;
+
+        // Calculate withholding tax based on selected mode
         if ($this->tax_calculation_mode === 'oil_sector') {
             // Oil sector mode: Calculate taxes on original subtotal (before discounts)
-            $this->vat_amount = round($this->sub_total * ($this->vat_rate / 100), 2);
-
             if ($this->withholding_tax_enabled) {
                 $this->withholding_tax_amount = round($this->sub_total * ($this->withholding_tax_rate / 100), 2);
             } else {
@@ -534,8 +535,6 @@ class InvoiceEdit extends Component
             }
         } else {
             // Standard mode: Calculate taxes on discounted amount (after discounts)
-            $this->vat_amount = round($taxable * ($this->vat_rate / 100), 2);
-
             if ($this->withholding_tax_enabled) {
                 $this->withholding_tax_amount = round($taxable * ($this->withholding_tax_rate / 100), 2);
             } else {
