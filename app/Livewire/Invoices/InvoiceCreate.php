@@ -91,7 +91,7 @@ class InvoiceCreate extends Component
         'invoice_lines.*.item.name' => 'required|string',
         'invoice_lines.*.item.description' => 'required|string',
         'invoice_lines.*.invoiced_quantity' => 'required|numeric|min:0.01',
-        'invoice_lines.*.price.price_amount' => 'required|numeric|min:0',
+        'invoice_lines.*.price.price_amount' => 'required|numeric|min:0.01',
     ];
 
     public function mount()
