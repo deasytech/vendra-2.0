@@ -117,9 +117,7 @@ class TaxlyInvoicePayloadBuilder
         'payable_amount' => $invoice->legal_monetary_total['payable_amount'] ?? ($invoice->lines->sum('line_total') + $invoice->tax_totals->sum('tax_amount')) ?? 0,
       ],
       'invoice_line' => $invoice->lines->map(function ($line) {
-        return [
-          'hsn_code' => $line->hsn_code,
-          'product_category' => $line->product_category,
+        $payload = [
           'discount_rate' => $line->discount_rate,
           'discount_amount' => $line->discount_amount,
           'fee_rate' => $line->fee_rate,
@@ -137,6 +135,16 @@ class TaxlyInvoicePayloadBuilder
             'price_unit' => Arr::get($line->price, 'price_unit', 'NGN per 1'),
           ],
         ];
+
+        if ($line->hsn_code) {
+          $payload['hsn_code'] = $line->hsn_code;
+          $payload['product_category'] = $line->product_category;
+        } else {
+          $payload['isic_code'] = $line->isic_code;
+          $payload['service_category'] = $line->service_category;
+        }
+
+        return $payload;
       }),
     ];
   }

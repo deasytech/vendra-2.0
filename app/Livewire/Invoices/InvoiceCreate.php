@@ -7,7 +7,9 @@ use App\Models\InvoiceLine;
 use App\Models\InvoiceTaxTotal;
 use App\Models\Customer;
 use App\Models\Organization;
+use App\Models\Product;
 use App\Models\Setting;
+use App\Services\TaxlyResourceOptions;
 use App\Services\TaxlyService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -70,6 +72,8 @@ class InvoiceCreate extends Component
     public $invoice_types = [];
     public $currencies = [];
     public $allowance_charges = [];
+    public $hs_codes = [];
+    public $service_codes = [];
 
     public $hsn_code, $product_category;
 
@@ -79,6 +83,11 @@ class InvoiceCreate extends Component
         'invoice_reference' => 'required|string|max:255',
         'issue_date' => 'required|date',
         'invoice_lines' => 'required|array|min:1',
+        'invoice_lines.*.product_id' => 'nullable|integer',
+        'invoice_lines.*.hsn_code' => 'nullable|string|max:50',
+        'invoice_lines.*.isic_code' => 'nullable|string|max:50',
+        'invoice_lines.*.product_category' => 'nullable|string|max:255',
+        'invoice_lines.*.service_category' => 'nullable|string|max:255',
         'invoice_lines.*.item.name' => 'required|string',
         'invoice_lines.*.item.description' => 'required|string',
         'invoice_lines.*.invoiced_quantity' => 'required|numeric|min:0.01',
@@ -112,23 +121,15 @@ class InvoiceCreate extends Component
         $this->loadInvoiceTypes();
         $this->loadCurrencies();
         $this->loadTaxes();
+        $this->loadClassificationCodes();
 
-        $this->invoice_lines = [
-            [
-                'hsn_code' => $this->hsn_code = $this->generateHsnCode(),
-                'product_category' => $this->product_category,
-                'invoiced_quantity' => 1,
-                'price' => [
-                    'price_amount' => 0,
-                    'base_quantity' => 1,
-                    'price_unit' => 'NGN per 1'
-                ],
-                'item' => ['name' => '', 'description' => ''],
-                'order' => 0,
-                'selected_tax' => 'STANDARD_VAT',
-                'tax_amount' => 0
-            ]
-        ];
+        $this->invoice_lines = [$this->emptyInvoiceLine()];
+    }
+
+    private function loadClassificationCodes(): void
+    {
+        $this->hs_codes = TaxlyResourceOptions::hsCodes();
+        $this->service_codes = TaxlyResourceOptions::serviceCodes();
     }
 
     /**
@@ -302,11 +303,27 @@ class InvoiceCreate extends Component
         return Organization::all();
     }
 
+    public function getProductsProperty()
+    {
+        return Product::where('is_active', true)
+            ->orderBy('name')
+            ->get();
+    }
+
     public function addLine()
     {
-        $this->invoice_lines[] = [
-            'hsn_code' => $this->hsn_code = $this->generateHsnCode(),
-            'product_category' => $this->product_category,
+        $this->invoice_lines[] = $this->emptyInvoiceLine(count($this->invoice_lines));
+        $this->computeTotals();
+    }
+
+    private function emptyInvoiceLine(int $order = 0): array
+    {
+        return [
+            'product_id' => null,
+            'hsn_code' => null,
+            'isic_code' => '001',
+            'product_category' => null,
+            'service_category' => TaxlyResourceOptions::serviceCodeDescription('001'),
             'invoiced_quantity' => 1,
             'price' => [
                 'price_amount' => 0,
@@ -314,11 +331,10 @@ class InvoiceCreate extends Component
                 'price_unit' => $this->selected_currency . ' per 1'
             ],
             'item' => ['name' => '', 'description' => ''],
-            'order' => count($this->invoice_lines),
+            'order' => $order,
             'selected_tax' => 'STANDARD_VAT',
             'tax_amount' => 0
         ];
-        $this->computeTotals();
     }
 
     public function removeLine($index)
@@ -332,7 +348,76 @@ class InvoiceCreate extends Component
     // Live update when invoice line data changes
     public function updatedInvoiceLines($value, $key)
     {
+        if (str_ends_with((string) $key, '.product_id')) {
+            $index = (int) explode('.', (string) $key)[0];
+            $this->applyProductToLine($index, $value);
+        }
+
+        if (str_ends_with((string) $key, '.hsn_code')) {
+            $index = (int) explode('.', (string) $key)[0];
+            $this->applyHsnCodeToLine($index, $value);
+        }
+
+        if (str_ends_with((string) $key, '.isic_code')) {
+            $index = (int) explode('.', (string) $key)[0];
+            $this->applyServiceCodeToLine($index, $value);
+        }
+
         $this->computeTotals();
+    }
+
+    private function applyProductToLine(int $index, $productId): void
+    {
+        if (!$productId || !isset($this->invoice_lines[$index])) {
+            return;
+        }
+
+        $product = Product::find($productId);
+
+        if (!$product) {
+            return;
+        }
+
+        $this->invoice_lines[$index]['product_id'] = $product->id;
+        $this->invoice_lines[$index]['hsn_code'] = $product->hsn_code;
+        $this->invoice_lines[$index]['isic_code'] = $product->isic_code ?: '001';
+        $this->invoice_lines[$index]['product_category'] = $product->product_category
+            ?: TaxlyResourceOptions::hsCodeDescription($product->hsn_code);
+        $this->invoice_lines[$index]['service_category'] = $product->service_category
+            ?: TaxlyResourceOptions::serviceCodeDescription($product->isic_code ?: '001');
+        $this->invoice_lines[$index]['item'] = [
+            'name' => $product->name,
+            'description' => $product->description ?: $product->name,
+            'sellers_item_identification' => $product->sku,
+        ];
+        $this->invoice_lines[$index]['price'] = [
+            'price_amount' => (float) $product->unit_price,
+            'base_quantity' => 1,
+            'price_unit' => ($product->currency_code ?: $this->selected_currency) . ' per 1',
+        ];
+
+        if ($product->currency_code && $product->currency_code !== $this->selected_currency) {
+            $this->selected_currency = $product->currency_code;
+            $this->updatedSelectedCurrency($product->currency_code);
+        }
+    }
+
+    private function applyHsnCodeToLine(int $index, ?string $code): void
+    {
+        if (!isset($this->invoice_lines[$index])) {
+            return;
+        }
+
+        $this->invoice_lines[$index]['product_category'] = TaxlyResourceOptions::hsCodeDescription($code);
+    }
+
+    private function applyServiceCodeToLine(int $index, ?string $code): void
+    {
+        if (!isset($this->invoice_lines[$index])) {
+            return;
+        }
+
+        $this->invoice_lines[$index]['service_category'] = TaxlyResourceOptions::serviceCodeDescription($code);
     }
 
     // Live update when quantity changes
@@ -528,8 +613,7 @@ class InvoiceCreate extends Component
             ]);
 
             foreach ($this->invoice_lines as $i => $line) {
-                $line['order'] = $i;
-                InvoiceLine::create(array_merge($line, ['invoice_id' => $invoice->id]));
+                InvoiceLine::create(array_merge($this->normalizeInvoiceLineForStorage($line, $i), ['invoice_id' => $invoice->id]));
             }
 
             $this->syncInvoiceTaxTotals($invoice);
@@ -620,8 +704,7 @@ class InvoiceCreate extends Component
             ]);
 
             foreach ($this->invoice_lines as $i => $line) {
-                $line['order'] = $i;
-                InvoiceLine::create(array_merge($line, ['invoice_id' => $invoice->id]));
+                InvoiceLine::create(array_merge($this->normalizeInvoiceLineForStorage($line, $i), ['invoice_id' => $invoice->id]));
             }
 
             $this->syncInvoiceTaxTotals($invoice);
@@ -651,63 +734,7 @@ class InvoiceCreate extends Component
                     ],
                 ],
                 'allowance_charge' => $this->getFormattedAllowanceCharges(),
-                'tax_total' => [
-                    [
-                        'tax_amount' => $this->vat_amount,
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->vat_amount,
-                                'tax_category' => [
-                                    'id' => $this->tax_category_id,
-                                    'percent' => (float) $this->vat_rate,
-                                ],
-                            ],
-                        ],
-                    ],
-                    // Withholding tax
-                    [
-                        'tax_amount' => $this->withholding_tax_amount,
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->withholding_tax_amount,
-                                'tax_category' => [
-                                    'id' => 'WITHHOLDING_TAX',
-                                    'percent' => (float) $this->withholding_tax_rate,
-                                ],
-                            ],
-                        ],
-                    ],
-                    // Discounts (allowance charges with charge_indicator = false)
-                    [
-                        'tax_amount' => $this->getDiscountAmount(),
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->getDiscountAmount(),
-                                'tax_category' => [
-                                    'id' => 'ZERO_VAT',
-                                    'percent' => (float) $this->getDiscountPercentage(),
-                                ],
-                            ],
-                        ],
-                    ],
-                    // Other charges (allowance charges with charge_indicator = true)
-                    [
-                        'tax_amount' => $this->getChargeAmount(),
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->getChargeAmount(),
-                                'tax_category' => [
-                                    'id' => 'STANDARD_VAT',
-                                    'percent' => (float) $this->getChargePercentage(),
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
+                'tax_total' => $this->buildTaxTotalsForSubmission(),
             ];
 
             // Only include customer party if customer is selected
@@ -940,14 +967,13 @@ class InvoiceCreate extends Component
     private function formatInvoiceLinesForTaxly(): array
     {
         return array_map(function ($line, $index) {
-            return [
-                'hsn_code' => $line['hsn_code'] ?? $this->generateHsnCode(),
-                'product_category' => $line['product_category'] ?? 'General Items',
+            $formatted = [
                 'invoiced_quantity' => (float) ($line['invoiced_quantity'] ?? 0),
                 'line_extension_amount' => (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)),
                 'item' => [
                     'name' => $line['item']['name'] ?? '',
                     'description' => $line['item']['description'] ?? '',
+                    'sellers_item_identification' => $line['item']['sellers_item_identification'] ?? null,
                     'selected_tax' => $line['selected_tax'] ?? 'STANDARD_VAT',
                 ],
                 'price' => [
@@ -957,7 +983,34 @@ class InvoiceCreate extends Component
                 ],
                 'order' => $index,
             ];
+
+            if (!empty($line['hsn_code'])) {
+                $formatted['hsn_code'] = $line['hsn_code'];
+                $formatted['product_category'] = $line['product_category']
+                    ?? TaxlyResourceOptions::hsCodeDescription($line['hsn_code']);
+            } else {
+                $formatted['isic_code'] = $line['isic_code'] ?? '001';
+                $formatted['service_category'] = $line['service_category']
+                    ?? TaxlyResourceOptions::serviceCodeDescription($line['isic_code'] ?? '001');
+            }
+
+            return $formatted;
         }, $this->invoice_lines, array_keys($this->invoice_lines));
+    }
+
+    private function normalizeInvoiceLineForStorage(array $line, int $index): array
+    {
+        $line['order'] = $index;
+        $line['product_id'] = ($line['product_id'] ?? null) ?: null;
+        $line['hsn_code'] = ($line['hsn_code'] ?? null) ?: null;
+        $line['isic_code'] = ($line['isic_code'] ?? null) ?: '001';
+        $line['product_category'] = ($line['product_category'] ?? null)
+            ?: TaxlyResourceOptions::hsCodeDescription($line['hsn_code']);
+        $line['service_category'] = ($line['service_category'] ?? null)
+            ?: TaxlyResourceOptions::serviceCodeDescription($line['isic_code']);
+        $line['line_extension_amount'] = round((float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)), 2);
+
+        return $line;
     }
 
     /**
@@ -1057,66 +1110,50 @@ class InvoiceCreate extends Component
         return $e->getMessage();
     }
 
-    // Helper methods for tax_total calculations
-    private function getDiscountAmount(): float
+    /**
+     * Build the tax_total array for FIRS submission.
+     *
+     * Only VAT and (when enabled) withholding tax are real tax categories.
+     * Discounts/charges are already conveyed via the top-level allowance_charge
+     * field, so they must not be duplicated here — doing so previously reused
+     * the STANDARD_VAT id with a 0% rate, which FIRS rejects since STANDARD_VAT
+     * must always be 7.5%.
+     */
+    private function buildTaxTotalsForSubmission(): array
     {
-        $discountAmount = 0;
-        foreach ($this->allowance_charges as $charge) {
-            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === false) {
-                $amount = (float) ($charge['amount'] ?? 0);
-                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                    $amount = round($this->sub_total * ($amount / 100), 2);
-                }
-                $discountAmount += $amount;
-            }
+        $taxTotals = [
+            [
+                'tax_amount' => $this->vat_amount,
+                'tax_subtotal' => [
+                    [
+                        'taxable_amount' => $this->sub_total,
+                        'tax_amount' => $this->vat_amount,
+                        'tax_category' => [
+                            'id' => $this->tax_category_id,
+                            'percent' => (float) $this->vat_rate,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        if ($this->withholding_tax_enabled && $this->withholding_tax_amount > 0) {
+            $taxTotals[] = [
+                'tax_amount' => $this->withholding_tax_amount,
+                'tax_subtotal' => [
+                    [
+                        'taxable_amount' => $this->sub_total,
+                        'tax_amount' => $this->withholding_tax_amount,
+                        'tax_category' => [
+                            'id' => 'WITHHOLDING_TAX',
+                            'percent' => (float) $this->withholding_tax_rate,
+                        ],
+                    ],
+                ],
+            ];
         }
-        return round($discountAmount, 2);
+
+        return $taxTotals;
     }
 
-    private function getDiscountPercentage(): float
-    {
-        $totalDiscount = 0;
-        $count = 0;
-        foreach ($this->allowance_charges as $charge) {
-            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === false) {
-                $amount = (float) ($charge['amount'] ?? 0);
-                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                    $totalDiscount += $amount;
-                    $count++;
-                }
-            }
-        }
-        return $count > 0 ? round($totalDiscount / $count, 2) : 0;
-    }
-
-    private function getChargeAmount(): float
-    {
-        $chargeAmount = 0;
-        foreach ($this->allowance_charges as $charge) {
-            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === true) {
-                $amount = (float) ($charge['amount'] ?? 0);
-                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                    $amount = round($this->sub_total * ($amount / 100), 2);
-                }
-                $chargeAmount += $amount;
-            }
-        }
-        return round($chargeAmount, 2);
-    }
-
-    private function getChargePercentage(): float
-    {
-        $totalCharge = 0;
-        $count = 0;
-        foreach ($this->allowance_charges as $charge) {
-            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === true) {
-                $amount = (float) ($charge['amount'] ?? 0);
-                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                    $totalCharge += $amount;
-                    $count++;
-                }
-            }
-        }
-        return $count > 0 ? round($totalCharge / $count, 2) : 0;
-    }
 }

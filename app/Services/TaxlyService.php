@@ -48,7 +48,7 @@ class TaxlyService
 
     protected function client()
     {
-        return Http::withHeaders($this->headers)->baseUrl($this->baseUrl);
+        return Http::timeout(15)->withHeaders($this->headers)->baseUrl($this->baseUrl);
     }
 
     protected function handleRequestException(RequestException $e)
@@ -284,6 +284,36 @@ class TaxlyService
             throw $this->handleRequestException($e);
         } catch (Throwable $e) {
             Log::error('Taxly getTaxCategories error', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /** Get HS Codes */
+    public function getHsCodes(): array
+    {
+        try {
+            $res = $this->client()->get('/resources/hs-codes');
+            $res->throw();
+            return $res->json();
+        } catch (RequestException $e) {
+            throw $this->handleRequestException($e);
+        } catch (Throwable $e) {
+            Log::error('Taxly getHsCodes error', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
+    /** Get Service / ISIC Codes */
+    public function getServiceCodes(): array
+    {
+        try {
+            $res = $this->client()->get('/resources/services-codes');
+            $res->throw();
+            return $res->json();
+        } catch (RequestException $e) {
+            throw $this->handleRequestException($e);
+        } catch (Throwable $e) {
+            Log::error('Taxly getServiceCodes error', ['error' => $e->getMessage()]);
             throw $e;
         }
     }

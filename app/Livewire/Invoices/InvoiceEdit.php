@@ -209,7 +209,9 @@ class InvoiceEdit extends Component
             $this->invoice_lines[] = [
                 'id' => $line->id,
                 'hsn_code' => $line->hsn_code ?? $this->generateHsnCode(),
+                'isic_code' => $line->isic_code,
                 'product_category' => $line->product_category ?? 'General Items',
+                'service_category' => $line->service_category,
                 'invoiced_quantity' => $line->invoiced_quantity ?? $line->quantity ?? 1,
                 'price' => [
                     'price_amount' => $line->price['price_amount'] ?? 0,
@@ -231,7 +233,9 @@ class InvoiceEdit extends Component
             $this->invoice_lines = [
                 [
                     'hsn_code' => $this->generateHsnCode(),
+                    'isic_code' => null,
                     'product_category' => 'General Items',
+                    'service_category' => null,
                     'invoiced_quantity' => 1,
                     'price' => [
                         'price_amount' => 0,
@@ -435,7 +439,9 @@ class InvoiceEdit extends Component
     {
         $this->invoice_lines[] = [
             'hsn_code' => $this->generateHsnCode(),
+            'isic_code' => null,
             'product_category' => 'General Items',
+            'service_category' => null,
             'invoiced_quantity' => 1,
             'price' => [
                 'price_amount' => 0,
@@ -656,7 +662,9 @@ class InvoiceEdit extends Component
                 $lineData = [
                     'invoice_id' => $this->invoice->id,
                     'hsn_code' => $line['hsn_code'] ?? $this->generateHsnCode(),
+                    'isic_code' => $line['isic_code'] ?? null,
                     'product_category' => $line['product_category'] ?? 'General Items',
+                    'service_category' => $line['service_category'] ?? null,
                     'invoiced_quantity' => $line['invoiced_quantity'] ?? 1,
                     'quantity' => $line['invoiced_quantity'] ?? 1,
                     'price' => [
@@ -790,63 +798,7 @@ class InvoiceEdit extends Component
                     ],
                 ],
                 'allowance_charge' => $this->getFormattedAllowanceCharges(),
-                'tax_total' => [
-                    [
-                        'tax_amount' => $this->vat_amount,
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->vat_amount,
-                                'tax_category' => [
-                                    'id' => $this->tax_category_id,
-                                    'percent' => $this->vat_rate,
-                                ],
-                            ],
-                        ],
-                    ],
-                    // Withholding tax
-                    [
-                        'tax_amount' => $this->withholding_tax_amount,
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->withholding_tax_amount,
-                                'tax_category' => [
-                                    'id' => 'WITHHOLDING_TAX',
-                                    'percent' => (float) $this->withholding_tax_rate,
-                                ],
-                            ],
-                        ],
-                    ],
-                    // Discounts (allowance charges with charge_indicator = false)
-                    [
-                        'tax_amount' => $this->getDiscountAmount(),
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->getDiscountAmount(),
-                                'tax_category' => [
-                                    'id' => 'ZERO_VAT',
-                                    'percent' => (float) $this->getDiscountPercentage(),
-                                ],
-                            ],
-                        ],
-                    ],
-                    // Other charges (allowance charges with charge_indicator = true)
-                    [
-                        'tax_amount' => $this->getChargeAmount(),
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->getChargeAmount(),
-                                'tax_category' => [
-                                    'id' => 'STANDARD_VAT',
-                                    'percent' => (float) $this->getChargePercentage(),
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
+                'tax_total' => $this->buildTaxTotalsForSubmission(),
             ];
 
             // Only include customer party if customer is selected
@@ -929,7 +881,9 @@ class InvoiceEdit extends Component
         return array_map(function ($line, $index) {
             return [
                 'hsn_code' => $line['hsn_code'] ?? $this->generateHsnCode(),
+                'isic_code' => $line['isic_code'] ?? null,
                 'product_category' => $line['product_category'] ?? 'General Items',
+                'service_category' => $line['service_category'] ?? null,
                 'invoiced_quantity' => (float) ($line['invoiced_quantity'] ?? 0),
                 'line_extension_amount' => (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)),
                 'item' => [
@@ -1027,66 +981,49 @@ class InvoiceEdit extends Component
         return $e->getMessage();
     }
 
-    // Helper methods for tax_total calculations
-    private function getDiscountAmount(): float
+    /**
+     * Build the tax_total array for FIRS submission.
+     *
+     * Only VAT and (when enabled) withholding tax are real tax categories.
+     * Discounts/charges are already conveyed via the top-level allowance_charge
+     * field, so they must not be duplicated here — doing so previously reused
+     * the STANDARD_VAT id with a 0% rate, which FIRS rejects since STANDARD_VAT
+     * must always be 7.5%.
+     */
+    private function buildTaxTotalsForSubmission(): array
     {
-        $discountAmount = 0;
-        foreach ($this->allowance_charges as $charge) {
-            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === false) {
-                $amount = (float) ($charge['amount'] ?? 0);
-                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                    $amount = round($this->sub_total * ($amount / 100), 2);
-                }
-                $discountAmount += $amount;
-            }
-        }
-        return round($discountAmount, 2);
-    }
+        $taxTotals = [
+            [
+                'tax_amount' => $this->vat_amount,
+                'tax_subtotal' => [
+                    [
+                        'taxable_amount' => $this->sub_total,
+                        'tax_amount' => $this->vat_amount,
+                        'tax_category' => [
+                            'id' => $this->tax_category_id,
+                            'percent' => (float) $this->vat_rate,
+                        ],
+                    ],
+                ],
+            ],
+        ];
 
-    private function getDiscountPercentage(): float
-    {
-        $totalDiscount = 0;
-        $count = 0;
-        foreach ($this->allowance_charges as $charge) {
-            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === false) {
-                $amount = (float) ($charge['amount'] ?? 0);
-                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                    $totalDiscount += $amount;
-                    $count++;
-                }
-            }
+        if ($this->withholding_tax_enabled && $this->withholding_tax_amount > 0) {
+            $taxTotals[] = [
+                'tax_amount' => $this->withholding_tax_amount,
+                'tax_subtotal' => [
+                    [
+                        'taxable_amount' => $this->sub_total,
+                        'tax_amount' => $this->withholding_tax_amount,
+                        'tax_category' => [
+                            'id' => 'WITHHOLDING_TAX',
+                            'percent' => (float) $this->withholding_tax_rate,
+                        ],
+                    ],
+                ],
+            ];
         }
-        return $count > 0 ? round($totalDiscount / $count, 2) : 0;
-    }
 
-    private function getChargeAmount(): float
-    {
-        $chargeAmount = 0;
-        foreach ($this->allowance_charges as $charge) {
-            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === true) {
-                $amount = (float) ($charge['amount'] ?? 0);
-                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                    $amount = round($this->sub_total * ($amount / 100), 2);
-                }
-                $chargeAmount += $amount;
-            }
-        }
-        return round($chargeAmount, 2);
-    }
-
-    private function getChargePercentage(): float
-    {
-        $totalCharge = 0;
-        $count = 0;
-        foreach ($this->allowance_charges as $charge) {
-            if (!empty($charge['charge_indicator']) && $charge['charge_indicator'] === true) {
-                $amount = (float) ($charge['amount'] ?? 0);
-                if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                    $totalCharge += $amount;
-                    $count++;
-                }
-            }
-        }
-        return $count > 0 ? round($totalCharge / $count, 2) : 0;
+        return $taxTotals;
     }
 }

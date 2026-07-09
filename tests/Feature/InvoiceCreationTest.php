@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Organization;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -143,5 +144,45 @@ class InvoiceCreationTest extends TestCase
     // The payload should not include accounting_customer_party when no customer is selected
     // This would be tested in the actual submission method, but we can verify the logic
     $this->assertFalse($instance->customer_id || !empty($instance->customer['party_name']));
+  }
+
+  public function test_product_selection_populates_invoice_line()
+  {
+    $product = Product::create([
+      'tenant_id' => null,
+      'name' => 'Solar Inverter',
+      'description' => '5KVA hybrid inverter',
+      'sku' => 'INV-5KVA',
+      'hsn_code' => '8504.40',
+      'isic_code' => '6201',
+      'product_category' => 'Static converters',
+      'service_category' => 'Computer programming activities',
+      'unit_price' => 250000,
+      'currency_code' => 'NGN',
+      'unit_of_measure' => 'unit',
+      'is_active' => true,
+    ]);
+
+    Livewire::test(InvoiceCreate::class)
+      ->set('invoice_lines.0.product_id', $product->id)
+      ->assertSet('invoice_lines.0.item.name', 'Solar Inverter')
+      ->assertSet('invoice_lines.0.item.description', '5KVA hybrid inverter')
+      ->assertSet('invoice_lines.0.item.sellers_item_identification', 'INV-5KVA')
+      ->assertSet('invoice_lines.0.hsn_code', '8504.40')
+      ->assertSet('invoice_lines.0.product_category', 'Static converters')
+      ->assertSet('invoice_lines.0.isic_code', '6201')
+      ->assertSet('invoice_lines.0.service_category', 'Computer programming activities')
+      ->assertSet('invoice_lines.0.price.price_amount', 250000.0);
+  }
+
+  public function test_classification_dropdowns_populate_category_names()
+  {
+    Livewire::test(InvoiceCreate::class)
+      ->set('invoice_lines.0.hsn_code', '8504.40')
+      ->assertSet('invoice_lines.0.product_category', 'Static converters')
+      ->set('invoice_lines.0.hsn_code', '')
+      ->assertSet('invoice_lines.0.product_category', null)
+      ->set('invoice_lines.0.isic_code', '6201')
+      ->assertSet('invoice_lines.0.service_category', 'Computer programming activities');
   }
 }

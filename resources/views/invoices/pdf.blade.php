@@ -572,7 +572,7 @@
                 <thead>
                     <tr>
                         <th>Description</th>
-                        <th>HSN</th>
+                        <th>Code</th>
                         <th>Category</th>
                         <th>Qty</th>
                         <th>Unit Price</th>
@@ -609,8 +609,8 @@
                                     <div class="item-detail">{{ $item->item['description'] }}</div>
                                 @endif
                             </td>
-                            <td>{{ $item->hsn_code ?? '-' }}</td>
-                            <td>{{ $item->product_category ?? '-' }}</td>
+                            <td>{{ $item->hsn_code ?? $item->isic_code ?? '-' }}</td>
+                            <td>{{ $item->product_category ?? $item->service_category ?? '-' }}</td>
                             <td>{{ number_format($itemQty, 2) }}</td>
                             <td>
                                 {{ $currencySymbol }}{{ number_format($itemPrice, 2) }}

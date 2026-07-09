@@ -360,7 +360,9 @@ class ExchangeInvoices extends Component
         \App\Models\InvoiceLine::create([
           'invoice_id' => $invoice->id,
           'hsn_code' => $item['hsnCode'] ?? $item['hsn_code'] ?? 'GENERAL',
+          'isic_code' => $item['isicCode'] ?? $item['isic_code'] ?? null,
           'product_category' => $item['productCategory'] ?? $item['product_category'] ?? 'General Items',
+          'service_category' => $item['serviceCategory'] ?? $item['service_category'] ?? null,
           'invoiced_quantity' => (int) ($item['quantity'] ?? $item['invoiced_quantity'] ?? 1),
           'line_extension_amount' => (float) ($item['totalPrice'] ?? $item['line_extension_amount'] ?? (($item['unitPrice'] ?? data_get($item, 'price.price_amount', 0)) * ($item['quantity'] ?? 1))),
           'item' => [

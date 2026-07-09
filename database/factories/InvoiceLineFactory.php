@@ -18,7 +18,9 @@ class InvoiceLineFactory extends Factory
     return [
       'invoice_id' => Invoice::factory(),
       'hsn_code' => strtoupper($this->faker->bothify('HSN###')),
+      'isic_code' => null,
       'product_category' => $this->faker->word(),
+      'service_category' => null,
       'discount_rate' => 0,
       'discount_amount' => 0,
       'fee_rate' => 0,

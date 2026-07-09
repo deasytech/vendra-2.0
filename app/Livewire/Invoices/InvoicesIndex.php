@@ -704,7 +704,9 @@ class InvoicesIndex extends Component
         return $lines->map(function ($line, $index) {
             return [
                 'hsn_code' => $line->hsn_code ?? 'GENERAL',
+                'isic_code' => $line->isic_code,
                 'product_category' => $line->product_category ?? 'General Items',
+                'service_category' => $line->service_category,
                 'invoiced_quantity' => (float) ($line->invoiced_quantity ?? 0),
                 'line_extension_amount' => (float) (($line->price['price_amount'] ?? 0) * ($line->invoiced_quantity ?? 0)),
                 'item' => $line->item ?? ['name' => 'Item', 'description' => 'Item description'],

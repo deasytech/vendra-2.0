@@ -32,6 +32,11 @@
                     {{ __('Customers') }}
                 </flux:navlist.item>
 
+                <flux:navlist.item icon="cube" :href="route('products.index')"
+                    :current="request()->routeIs('products.*')" wire:navigate>
+                    {{ __('Products') }}
+                </flux:navlist.item>
+
                 <!-- Invoice Exchange -->
                 <flux:navlist.item icon="paper-airplane" :href="route('exchange-invoices')"
                     :current="request()->routeIs('exchange-invoices')" wire:navigate>

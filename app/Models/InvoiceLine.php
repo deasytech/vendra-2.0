@@ -11,7 +11,10 @@ class InvoiceLine extends Model
 
     protected $fillable = [
         'invoice_id',
+        'product_id',
         'hsn_code',
+        'isic_code',
+        'service_category',
         'product_category',
         'discount_rate',
         'discount_amount',
@@ -32,5 +35,10 @@ class InvoiceLine extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
     }
 }

@@ -237,6 +237,19 @@
                 <div class="border border-gray-200 rounded-lg p-4 bg-gray-50" wire:key="line-{{ $idx }}">
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <div class="md:col-span-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                            <select wire:model.live="invoice_lines.{{ $idx }}.product_id"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700">
+                                <option value="">Custom line item...</option>
+                                @foreach ($this->products as $product)
+                                    <option value="{{ $product->id }}">
+                                        {{ $product->name }} - {{ $product->currency_code }} {{ number_format((float) $product->unit_price, 2) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-3">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
                             <input wire:model.lazy="invoice_lines.{{ $idx }}.item.name"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
@@ -252,6 +265,34 @@
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
                                 placeholder="Product or service description" />
                             @error('invoice_lines.' . $idx . '.item.description')
+                                <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
+                            @enderror
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">HSN Code</label>
+                            <select wire:model.live="invoice_lines.{{ $idx }}.hsn_code"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700">
+                                <option value="">Select HSN...</option>
+                                @foreach ($hs_codes as $code)
+                                    <option value="{{ $code['code'] }}">{{ $code['code'] }} - {{ $code['description'] }}</option>
+                                @endforeach
+                            </select>
+                            @error('invoice_lines.' . $idx . '.hsn_code')
+                                <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
+                            @enderror
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ISIC Code</label>
+                            <select wire:model.live="invoice_lines.{{ $idx }}.isic_code"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700">
+                                <option value="">Select service code...</option>
+                                @foreach ($service_codes as $code)
+                                    <option value="{{ $code['code'] }}">{{ $code['code'] }} - {{ $code['description'] }}</option>
+                                @endforeach
+                            </select>
+                            @error('invoice_lines.' . $idx . '.isic_code')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
                             @enderror
                         </div>

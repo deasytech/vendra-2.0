@@ -249,7 +249,7 @@
             <tr>
                 <th style="width:5%;">#</th>
                 <th style="width:43%;">Description</th>
-                <th style="width:12%;">HSN</th>
+                <th style="width:12%;">Code</th>
                 <th style="width:10%;" class="text-right">Qty</th>
                 <th style="width:15%;" class="text-right">Unit Price</th>
                 <th style="width:15%;" class="text-right">Total</th>
@@ -271,7 +271,7 @@
                 <tr>
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $line->description ?? ($line->item['name'] ?? ($line->item['description'] ?? '-')) }}</td>
-                    <td>{{ $line->hsn_code ?? '-' }}</td>
+                    <td>{{ $line->hsn_code ?? $line->isic_code ?? '-' }}</td>
                     <td class="text-right">{{ number_format($qty, 2) }}</td>
                     <td class="text-right">{{ $currencySymbol }}{{ number_format($price, 2) }}</td>
                     <td class="text-right">{{ $currencySymbol }}{{ number_format($lineTotal, 2) }}</td>

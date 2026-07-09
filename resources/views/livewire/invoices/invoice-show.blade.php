@@ -324,7 +324,7 @@
                     <thead class="bg-zinc-100 dark:bg-zinc-800">
                         <tr>
                             <th class="p-3 text-left font-semibold">Description</th>
-                            <th class="p-3 text-left font-semibold">HSN</th>
+                            <th class="p-3 text-left font-semibold">Code</th>
                             <th class="p-3 text-left font-semibold">Category</th>
                             <th class="p-3 text-right font-semibold">Qty</th>
                             <th class="p-3 text-right font-semibold">Unit Price</th>
@@ -358,8 +358,8 @@
                                             {{ $item->item['description'] }}</div>
                                     @endif
                                 </td>
-                                <td class="p-3 text-zinc-600 dark:text-zinc-400">{{ $item->hsn_code ?? '-' }}</td>
-                                <td class="p-3 text-zinc-600 dark:text-zinc-400">{{ $item->product_category ?? '-' }}
+                                <td class="p-3 text-zinc-600 dark:text-zinc-400">{{ $item->hsn_code ?? $item->isic_code ?? '-' }}</td>
+                                <td class="p-3 text-zinc-600 dark:text-zinc-400">{{ $item->product_category ?? $item->service_category ?? '-' }}
                                 </td>
                                 <td class="p-3 text-right text-zinc-900 dark:text-zinc-100">
                                     {{ number_format($lineQty, 2) }}
