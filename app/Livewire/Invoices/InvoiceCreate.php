@@ -72,8 +72,6 @@ class InvoiceCreate extends Component
     public $invoice_types = [];
     public $currencies = [];
     public $allowance_charges = [];
-    public $hs_codes = [];
-    public $service_codes = [];
 
     public $hsn_code, $product_category;
 
@@ -127,15 +125,8 @@ class InvoiceCreate extends Component
         $this->loadInvoiceTypes();
         $this->loadCurrencies();
         $this->loadTaxes();
-        $this->loadClassificationCodes();
 
         $this->invoice_lines = [$this->emptyInvoiceLine()];
-    }
-
-    private function loadClassificationCodes(): void
-    {
-        $this->hs_codes = TaxlyResourceOptions::hsCodes();
-        $this->service_codes = TaxlyResourceOptions::serviceCodes();
     }
 
     /**
@@ -1106,7 +1097,10 @@ class InvoiceCreate extends Component
 
     public function render()
     {
-        return view('livewire.invoices.invoice-create');
+        return view('livewire.invoices.invoice-create', [
+            'hs_codes' => TaxlyResourceOptions::hsCodes(),
+            'service_codes' => TaxlyResourceOptions::serviceCodes(),
+        ]);
     }
 
     public function extractReadableFirsError(Throwable $e)

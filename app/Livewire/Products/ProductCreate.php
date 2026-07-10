@@ -20,9 +20,6 @@ class ProductCreate extends Component
     public $currency_code = 'NGN';
     public $unit_of_measure = 'KGM';
     public $is_active = true;
-    public $hs_codes = [];
-    public $service_codes = [];
-    public $unit_codes = [];
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -40,18 +37,6 @@ class ProductCreate extends Component
         'hsn_code.required_without' => 'Enter either an HSN code or an ISIC code for Taxly invoice submission.',
         'isic_code.required_without' => 'Enter either an HSN code or an ISIC code for Taxly invoice submission.',
     ];
-
-    public function mount()
-    {
-        $this->loadClassificationCodes();
-    }
-
-    private function loadClassificationCodes(): void
-    {
-        $this->hs_codes = TaxlyResourceOptions::hsCodes();
-        $this->service_codes = TaxlyResourceOptions::serviceCodes();
-        $this->unit_codes = TaxlyResourceOptions::quantityCodes();
-    }
 
     public function save()
     {
@@ -102,6 +87,10 @@ class ProductCreate extends Component
 
     public function render()
     {
-        return view('livewire.products.product-create');
+        return view('livewire.products.product-create', [
+            'hs_codes' => TaxlyResourceOptions::hsCodes(),
+            'service_codes' => TaxlyResourceOptions::serviceCodes(),
+            'unit_codes' => TaxlyResourceOptions::quantityCodes(),
+        ]);
     }
 }

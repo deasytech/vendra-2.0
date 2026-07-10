@@ -72,8 +72,6 @@ class InvoiceEdit extends Component
     public $invoice_types = [];
     public $currencies = [];
     public $allowance_charges = [];
-    public $hs_codes = [];
-    public $service_codes = [];
 
     public $hsn_code, $product_category;
 
@@ -114,14 +112,7 @@ class InvoiceEdit extends Component
         $this->loadInvoiceTypes();
         $this->loadCurrencies();
         $this->loadTaxes();
-        $this->loadClassificationCodes();
         $this->computeTotals();
-    }
-
-    private function loadClassificationCodes(): void
-    {
-        $this->hs_codes = TaxlyResourceOptions::hsCodes();
-        $this->service_codes = TaxlyResourceOptions::serviceCodes();
     }
 
     /**
@@ -804,7 +795,10 @@ class InvoiceEdit extends Component
 
     public function render()
     {
-        return view('livewire.invoices.invoice-edit');
+        return view('livewire.invoices.invoice-edit', [
+            'hs_codes' => TaxlyResourceOptions::hsCodes(),
+            'service_codes' => TaxlyResourceOptions::serviceCodes(),
+        ]);
     }
 
     public function validateInvoice()
