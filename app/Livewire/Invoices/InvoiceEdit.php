@@ -8,6 +8,7 @@ use App\Models\InvoiceTaxTotal;
 use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\Setting;
+use App\Services\TaxlyResourceOptions;
 use App\Services\TaxlyService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -71,6 +72,8 @@ class InvoiceEdit extends Component
     public $invoice_types = [];
     public $currencies = [];
     public $allowance_charges = [];
+    public $hs_codes = [];
+    public $service_codes = [];
 
     public $hsn_code, $product_category;
 
@@ -85,6 +88,8 @@ class InvoiceEdit extends Component
         'invoice_lines' => 'required|array|min:1',
         'invoice_lines.*.item.name' => 'required|string',
         'invoice_lines.*.item.description' => 'required|string',
+        'invoice_lines.*.hsn_code' => 'nullable|string|max:50',
+        'invoice_lines.*.isic_code' => 'nullable|string|max:50',
         'invoice_lines.*.invoiced_quantity' => 'required|numeric|min:0.01',
         'invoice_lines.*.price.price_amount' => 'required|numeric|min:0.01',
     ];
@@ -103,7 +108,14 @@ class InvoiceEdit extends Component
         $this->loadInvoiceTypes();
         $this->loadCurrencies();
         $this->loadTaxes();
+        $this->loadClassificationCodes();
         $this->computeTotals();
+    }
+
+    private function loadClassificationCodes(): void
+    {
+        $this->hs_codes = TaxlyResourceOptions::hsCodes();
+        $this->service_codes = TaxlyResourceOptions::serviceCodes();
     }
 
     /**
@@ -467,7 +479,35 @@ class InvoiceEdit extends Component
     // Live update when invoice line data changes
     public function updatedInvoiceLines($value, $key)
     {
+        if (str_ends_with((string) $key, '.hsn_code')) {
+            $index = (int) explode('.', (string) $key)[0];
+            $this->applyHsnCodeToLine($index, $value);
+        }
+
+        if (str_ends_with((string) $key, '.isic_code')) {
+            $index = (int) explode('.', (string) $key)[0];
+            $this->applyServiceCodeToLine($index, $value);
+        }
+
         $this->computeTotals();
+    }
+
+    private function applyHsnCodeToLine(int $index, ?string $code): void
+    {
+        if (!isset($this->invoice_lines[$index])) {
+            return;
+        }
+
+        $this->invoice_lines[$index]['product_category'] = TaxlyResourceOptions::hsCodeDescription($code);
+    }
+
+    private function applyServiceCodeToLine(int $index, ?string $code): void
+    {
+        if (!isset($this->invoice_lines[$index])) {
+            return;
+        }
+
+        $this->invoice_lines[$index]['service_category'] = TaxlyResourceOptions::serviceCodeDescription($code);
     }
 
     // Live update when quantity changes

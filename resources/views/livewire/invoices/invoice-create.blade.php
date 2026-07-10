@@ -271,13 +271,61 @@
 
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">HSN Code</label>
-                            <select wire:model.live="invoice_lines.{{ $idx }}.hsn_code"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700">
-                                <option value="">Select HSN...</option>
-                                @foreach ($hs_codes as $code)
-                                    <option value="{{ $code['code'] }}">{{ $code['code'] }} - {{ $code['description'] }}</option>
-                                @endforeach
-                            </select>
+                            <div class="relative" x-data="{
+                                open: false,
+                                query: '',
+                                options: @js($hs_codes),
+                                syncQuery() {
+                                    if (this.open) return;
+                                    const selected = this.options.find(item => item.code === $wire.invoice_lines[{{ $idx }}]?.hsn_code);
+                                    this.query = selected ? selected.description : '';
+                                },
+                                matches() {
+                                    const term = this.query.toLowerCase().trim();
+                                    if (!term) {
+                                        return this.options;
+                                    }
+
+                                    return this.options
+                                        .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
+                                },
+                                filtered() {
+                                    return this.matches().slice(0, 50);
+                                },
+                                select(item) {
+                                    this.query = item.description;
+                                    this.open = false;
+                                    $wire.set('invoice_lines.{{ $idx }}.hsn_code', item.code);
+                                },
+                                onInput() {
+                                    this.open = true;
+                                    $wire.set('invoice_lines.{{ $idx }}.hsn_code', '');
+                                }
+                            }" x-effect="syncQuery()" @click.outside="open = false">
+                                <input type="text" x-model="query" @focus="open = true" @input="onInput()"
+                                    placeholder="Search HSN code..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 @error('invoice_lines.' . $idx . '.hsn_code') border-red-500 @enderror">
+
+                                <div x-show="open" x-transition
+                                    class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                                    <template x-if="filtered().length === 0">
+                                        <div class="px-3 py-2 text-sm text-gray-500">No matching HSN code.</div>
+                                    </template>
+
+                                    <template x-for="item in filtered()" :key="item.code">
+                                        <button type="button" @click="select(item)"
+                                            class="w-full text-left px-3 py-2 hover:bg-blue-50">
+                                            <div class="text-sm text-gray-800" x-text="item.description"></div>
+                                            <div class="text-xs text-gray-500" x-text="item.code"></div>
+                                        </button>
+                                    </template>
+
+                                    <div x-show="matches().length > filtered().length"
+                                        class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 sticky bottom-0 bg-white"
+                                        x-text="`Showing ${filtered().length} of ${matches().length} — keep typing to narrow down`">
+                                    </div>
+                                </div>
+                            </div>
                             @error('invoice_lines.' . $idx . '.hsn_code')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
                             @enderror
@@ -285,13 +333,61 @@
 
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">ISIC Code</label>
-                            <select wire:model.live="invoice_lines.{{ $idx }}.isic_code"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700">
-                                <option value="">Select service code...</option>
-                                @foreach ($service_codes as $code)
-                                    <option value="{{ $code['code'] }}">{{ $code['code'] }} - {{ $code['description'] }}</option>
-                                @endforeach
-                            </select>
+                            <div class="relative" x-data="{
+                                open: false,
+                                query: '',
+                                options: @js($service_codes),
+                                syncQuery() {
+                                    if (this.open) return;
+                                    const selected = this.options.find(item => item.code === $wire.invoice_lines[{{ $idx }}]?.isic_code);
+                                    this.query = selected ? selected.description : '';
+                                },
+                                matches() {
+                                    const term = this.query.toLowerCase().trim();
+                                    if (!term) {
+                                        return this.options;
+                                    }
+
+                                    return this.options
+                                        .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
+                                },
+                                filtered() {
+                                    return this.matches().slice(0, 50);
+                                },
+                                select(item) {
+                                    this.query = item.description;
+                                    this.open = false;
+                                    $wire.set('invoice_lines.{{ $idx }}.isic_code', item.code);
+                                },
+                                onInput() {
+                                    this.open = true;
+                                    $wire.set('invoice_lines.{{ $idx }}.isic_code', '');
+                                }
+                            }" x-effect="syncQuery()" @click.outside="open = false">
+                                <input type="text" x-model="query" @focus="open = true" @input="onInput()"
+                                    placeholder="Search service code..."
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 @error('invoice_lines.' . $idx . '.isic_code') border-red-500 @enderror">
+
+                                <div x-show="open" x-transition
+                                    class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                                    <template x-if="filtered().length === 0">
+                                        <div class="px-3 py-2 text-sm text-gray-500">No matching service code.</div>
+                                    </template>
+
+                                    <template x-for="item in filtered()" :key="item.code">
+                                        <button type="button" @click="select(item)"
+                                            class="w-full text-left px-3 py-2 hover:bg-blue-50">
+                                            <div class="text-sm text-gray-800" x-text="item.description"></div>
+                                            <div class="text-xs text-gray-500" x-text="item.code"></div>
+                                        </button>
+                                    </template>
+
+                                    <div x-show="matches().length > filtered().length"
+                                        class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 sticky bottom-0 bg-white"
+                                        x-text="`Showing ${filtered().length} of ${matches().length} — keep typing to narrow down`">
+                                    </div>
+                                </div>
+                            </div>
                             @error('invoice_lines.' . $idx . '.isic_code')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
                             @enderror

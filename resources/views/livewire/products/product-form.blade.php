@@ -47,15 +47,17 @@
                         const selected = this.options.find(item => item.code === @js($hsn_code));
                         this.query = selected ? selected.description : '';
                     },
-                    filtered() {
+                    matches() {
                         const term = this.query.toLowerCase().trim();
                         if (!term) {
-                            return this.options.slice(0, 50);
+                            return this.options;
                         }
-                
+
                         return this.options
-                            .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term))
-                            .slice(0, 50);
+                            .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
+                    },
+                    filtered() {
+                        return this.matches().slice(0, 50);
                     },
                     select(item) {
                         this.query = item.description;
@@ -84,6 +86,11 @@
                                 <div class="text-xs text-gray-500" x-text="item.code"></div>
                             </button>
                         </template>
+
+                        <div x-show="matches().length > filtered().length"
+                            class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 sticky bottom-0 bg-white"
+                            x-text="`Showing ${filtered().length} of ${matches().length} — keep typing to narrow down`">
+                        </div>
                     </div>
                 </div>
                 @error('hsn_code')
@@ -101,15 +108,17 @@
                         const selected = this.options.find(item => item.code === @js($isic_code));
                         this.query = selected ? selected.description : '';
                     },
-                    filtered() {
+                    matches() {
                         const term = this.query.toLowerCase().trim();
                         if (!term) {
-                            return this.options.slice(0, 50);
+                            return this.options;
                         }
-                
+
                         return this.options
-                            .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term))
-                            .slice(0, 50);
+                            .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
+                    },
+                    filtered() {
+                        return this.matches().slice(0, 50);
                     },
                     select(item) {
                         this.query = item.description;
@@ -138,6 +147,11 @@
                                 <div class="text-xs text-gray-500" x-text="item.code"></div>
                             </button>
                         </template>
+
+                        <div x-show="matches().length > filtered().length"
+                            class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 sticky bottom-0 bg-white"
+                            x-text="`Showing ${filtered().length} of ${matches().length} — keep typing to narrow down`">
+                        </div>
                     </div>
                 </div>
                 @error('isic_code')
