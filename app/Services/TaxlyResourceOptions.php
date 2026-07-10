@@ -42,6 +42,23 @@ class TaxlyResourceOptions
         });
     }
 
+    public static function quantityCodes(): array
+    {
+        if (app()->environment('testing')) {
+            return self::fallbackQuantityCodes();
+        }
+
+        return Cache::remember('taxly.resource_options.quantity_codes', now()->addDay(), function () {
+            try {
+                return self::normalize((new TaxlyService())->getQuantityCodes(), ['code', 'quantity_code']);
+            } catch (Throwable $e) {
+                Log::warning('Failed to load Taxly quantity codes', ['error' => $e->getMessage()]);
+
+                return self::fallbackQuantityCodes();
+            }
+        });
+    }
+
     public static function hsCodeDescription(?string $code): ?string
     {
         return self::descriptionFor(self::hsCodes(), $code);
@@ -79,6 +96,14 @@ class TaxlyResourceOptions
         ];
     }
 
+    private static function fallbackQuantityCodes(): array
+    {
+        return [
+            ['code' => 'KGM', 'description' => 'Kilogram'],
+            ['code' => 'XBG', 'description' => 'Bag'],
+        ];
+    }
+
     private static function normalize(array $response, array $codeKeys): array
     {
         $items = $response['data'] ?? $response;
@@ -108,7 +133,7 @@ class TaxlyResourceOptions
 
                 return [
                     'code' => $code,
-                    'description' => (string) ($item['description'] ?? $item['name'] ?? $item['value'] ?? $code),
+                    'description' => (string) ($item['name'] ?? $item['description'] ?? $item['value'] ?? $code),
                 ];
             })
             ->filter()

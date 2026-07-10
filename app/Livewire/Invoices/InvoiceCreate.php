@@ -84,14 +84,20 @@ class InvoiceCreate extends Component
         'issue_date' => 'required|date',
         'invoice_lines' => 'required|array|min:1',
         'invoice_lines.*.product_id' => 'nullable|integer',
-        'invoice_lines.*.hsn_code' => 'nullable|string|max:50',
-        'invoice_lines.*.isic_code' => 'nullable|string|max:50',
+        'invoice_lines.*.hsn_code' => 'nullable|required_without:invoice_lines.*.isic_code|string|max:50',
+        'invoice_lines.*.isic_code' => 'nullable|required_without:invoice_lines.*.hsn_code|regex:/^[0-9]{4}$/',
         'invoice_lines.*.product_category' => 'nullable|string|max:255',
         'invoice_lines.*.service_category' => 'nullable|string|max:255',
         'invoice_lines.*.item.name' => 'required|string',
         'invoice_lines.*.item.description' => 'required|string',
         'invoice_lines.*.invoiced_quantity' => 'required|numeric|min:0.01',
         'invoice_lines.*.price.price_amount' => 'required|numeric|min:0.01',
+    ];
+
+    protected $messages = [
+        'invoice_lines.*.hsn_code.required_without' => 'Select a Product Category (HSN) or Service Category (ISIC) code.',
+        'invoice_lines.*.isic_code.required_without' => 'Select a Product Category (HSN) or Service Category (ISIC) code.',
+        'invoice_lines.*.isic_code.regex' => 'The service category (ISIC) code must be a valid 4-digit code.',
     ];
 
     public function mount()
@@ -321,9 +327,9 @@ class InvoiceCreate extends Component
         return [
             'product_id' => null,
             'hsn_code' => null,
-            'isic_code' => '001',
+            'isic_code' => null,
             'product_category' => null,
-            'service_category' => TaxlyResourceOptions::serviceCodeDescription('001'),
+            'service_category' => null,
             'invoiced_quantity' => 1,
             'price' => [
                 'price_amount' => 0,
@@ -380,11 +386,11 @@ class InvoiceCreate extends Component
 
         $this->invoice_lines[$index]['product_id'] = $product->id;
         $this->invoice_lines[$index]['hsn_code'] = $product->hsn_code;
-        $this->invoice_lines[$index]['isic_code'] = $product->isic_code ?: '001';
+        $this->invoice_lines[$index]['isic_code'] = $product->isic_code ?: null;
         $this->invoice_lines[$index]['product_category'] = $product->product_category
             ?: TaxlyResourceOptions::hsCodeDescription($product->hsn_code);
         $this->invoice_lines[$index]['service_category'] = $product->service_category
-            ?: TaxlyResourceOptions::serviceCodeDescription($product->isic_code ?: '001');
+            ?: TaxlyResourceOptions::serviceCodeDescription($product->isic_code);
         $this->invoice_lines[$index]['item'] = [
             'name' => $product->name,
             'description' => $product->description ?: $product->name,
@@ -580,7 +586,13 @@ class InvoiceCreate extends Component
 
     public function saveAsDraft()
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            $this->message = $e->getMessage();
+            return;
+        }
 
         $this->submitting = true;
         $this->computeTotals();
@@ -671,7 +683,13 @@ class InvoiceCreate extends Component
 
     public function submitInvoice()
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            $this->message = $e->getMessage();
+            return;
+        }
 
         $this->submitting = true;
         $this->computeTotals();
@@ -814,7 +832,15 @@ class InvoiceCreate extends Component
     public function validateInvoice()
     {
         $this->validating = true;
-        $this->validate();
+
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            $this->message = $e->getMessage();
+            $this->validating = false;
+            return;
+        }
 
         $this->ensureEntityIdentifiers();
 
@@ -932,6 +958,9 @@ class InvoiceCreate extends Component
 
             $this->message = 'IRN validation successful! Ready to submit.';
             $this->dispatch('validation-success', message: 'IRN structure is valid');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            $this->message = $e->getMessage();
         } catch (Throwable $e) {
             $readableError = $this->extractReadableFirsError($e);
             $this->addError('validation', $readableError);
@@ -989,9 +1018,9 @@ class InvoiceCreate extends Component
                 $formatted['product_category'] = $line['product_category']
                     ?? TaxlyResourceOptions::hsCodeDescription($line['hsn_code']);
             } else {
-                $formatted['isic_code'] = $line['isic_code'] ?? '001';
+                $formatted['isic_code'] = $line['isic_code'] ?? null;
                 $formatted['service_category'] = $line['service_category']
-                    ?? TaxlyResourceOptions::serviceCodeDescription($line['isic_code'] ?? '001');
+                    ?? TaxlyResourceOptions::serviceCodeDescription($line['isic_code'] ?? null);
             }
 
             return $formatted;
@@ -1003,7 +1032,7 @@ class InvoiceCreate extends Component
         $line['order'] = $index;
         $line['product_id'] = ($line['product_id'] ?? null) ?: null;
         $line['hsn_code'] = ($line['hsn_code'] ?? null) ?: null;
-        $line['isic_code'] = ($line['isic_code'] ?? null) ?: '001';
+        $line['isic_code'] = ($line['isic_code'] ?? null) ?: null;
         $line['product_category'] = ($line['product_category'] ?? null)
             ?: TaxlyResourceOptions::hsCodeDescription($line['hsn_code']);
         $line['service_category'] = ($line['service_category'] ?? null)

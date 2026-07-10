@@ -18,10 +18,11 @@ class ProductCreate extends Component
     public $service_category = '';
     public $unit_price = 0;
     public $currency_code = 'NGN';
-    public $unit_of_measure = 'unit';
+    public $unit_of_measure = 'KGM';
     public $is_active = true;
     public $hs_codes = [];
     public $service_codes = [];
+    public $unit_codes = [];
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -49,6 +50,7 @@ class ProductCreate extends Component
     {
         $this->hs_codes = TaxlyResourceOptions::hsCodes();
         $this->service_codes = TaxlyResourceOptions::serviceCodes();
+        $this->unit_codes = TaxlyResourceOptions::quantityCodes();
     }
 
     public function save()

@@ -1,4 +1,55 @@
-<div class="max-w-6xl mx-auto p-6">
+<div class="max-w-6xl mx-auto p-6" x-data="{
+    clientErrors: [],
+    validateInvoiceLines() {
+        const errors = [];
+        const lines = $wire.invoice_lines || [];
+
+        if (lines.length === 0) {
+            errors.push('Add at least one invoice line item.');
+        }
+
+        lines.forEach((line, idx) => {
+            const row = idx + 1;
+            const name = ((line.item && line.item.name) || '').trim();
+            const description = ((line.item && line.item.description) || '').trim();
+            const price = parseFloat(line.price && line.price.price_amount);
+            const quantity = parseFloat(line.invoiced_quantity);
+            const hsnCode = (line.hsn_code || '').trim();
+            const isicCode = (line.isic_code || '').trim();
+
+            if (!name) {
+                errors.push(`Line ${row}: Item name is required.`);
+            }
+            if (!description) {
+                errors.push(`Line ${row}: Item description is required.`);
+            }
+            if (isNaN(quantity) || quantity < 0.01) {
+                errors.push(`Line ${row}: Quantity must be at least 0.01.`);
+            }
+            if (isNaN(price) || price < 0.01) {
+                errors.push(`Line ${row}: Unit price must be at least 0.01.`);
+            }
+            if (!hsnCode && !isicCode) {
+                errors.push(`Line ${row}: Select a Product Category (HSN) or Service Category (ISIC) code.`);
+            } else if (!hsnCode && !/^\d{4}$/.test(isicCode)) {
+                errors.push(`Line ${row}: Service Category code must be a valid 4-digit ISIC code.`);
+            }
+        });
+
+        this.clientErrors = errors;
+        return errors.length === 0;
+    },
+    runAction(action) {
+        if (this.validateInvoiceLines()) {
+            $wire.call(action);
+        } else {
+            this.$nextTick(() => {
+                const el = document.getElementById('client-validation-errors');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+    }
+}">
     <!-- Header -->
     <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 mb-6">
         <div class="flex items-center justify-between">
@@ -11,6 +62,17 @@
                 <div class="text-lg font-semibold">{{ now()->format('M d, Y') }}</div>
             </div>
         </div>
+    </div>
+
+    <!-- Client-side Validation Errors -->
+    <div x-show="clientErrors.length > 0" x-cloak id="client-validation-errors"
+        class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700">
+        <div class="font-semibold mb-2">Please fix the following before continuing:</div>
+        <ul class="list-disc list-inside text-sm space-y-1">
+            <template x-for="(error, index) in clientErrors" :key="index">
+                <li x-text="error"></li>
+            </template>
+        </ul>
     </div>
 
     <!-- Status Messages -->
@@ -238,8 +300,9 @@
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <div class="md:col-span-3">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
-                            <input wire:model.lazy="invoice_lines.{{ $idx }}.item.name"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                            <input wire:model.lazy="invoice_lines.{{ $idx }}.item.name" required
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                                :class="clientErrors.length && !(($wire.invoice_lines[{{ $idx }}]?.item?.name || '').trim()) ? 'border-red-500' : 'border-gray-300'"
                                 placeholder="Product or service name" />
                             @error('invoice_lines.' . $idx . '.item.name')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
@@ -257,7 +320,7 @@
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">HSN Code</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Product Category</label>
                             <div class="relative" x-data="{
                                 open: false,
                                 query: '',
@@ -272,7 +335,7 @@
                                     if (!term) {
                                         return this.options;
                                     }
-
+                            
                                     return this.options
                                         .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
                                 },
@@ -288,7 +351,8 @@
                                     this.open = true;
                                     $wire.set('invoice_lines.{{ $idx }}.hsn_code', '');
                                 }
-                            }" x-effect="syncQuery()" @click.outside="open = false">
+                            }" x-effect="syncQuery()"
+                                @click.outside="open = false">
                                 <input type="text" x-model="query" @focus="open = true" @input="onInput()"
                                     placeholder="Search HSN code..."
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 @error('invoice_lines.' . $idx . '.hsn_code') border-red-500 @enderror">
@@ -319,7 +383,7 @@
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">ISIC Code</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Service Category</label>
                             <div class="relative" x-data="{
                                 open: false,
                                 query: '',
@@ -334,7 +398,7 @@
                                     if (!term) {
                                         return this.options;
                                     }
-
+                            
                                     return this.options
                                         .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
                                 },
@@ -350,10 +414,12 @@
                                     this.open = true;
                                     $wire.set('invoice_lines.{{ $idx }}.isic_code', '');
                                 }
-                            }" x-effect="syncQuery()" @click.outside="open = false">
+                            }" x-effect="syncQuery()"
+                                @click.outside="open = false">
                                 <input type="text" x-model="query" @focus="open = true" @input="onInput()"
                                     placeholder="Search service code..."
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 @error('invoice_lines.' . $idx . '.isic_code') border-red-500 @enderror">
+                                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 @error('invoice_lines.' . $idx . '.isic_code') border-red-500 @enderror"
+                                    :class="clientErrors.length && !($wire.invoice_lines[{{ $idx }}]?.hsn_code) && !/^\d{4}$/.test($wire.invoice_lines[{{ $idx }}]?.isic_code || '') ? 'border-red-500' : 'border-gray-300'">
 
                                 <div x-show="open" x-transition
                                     class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-56 overflow-y-auto">
@@ -394,9 +460,10 @@
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price
                                 ({{ $selected_currency_symbol }}) *</label>
-                            <input type="number" step="0.01"
+                            <input type="number" step="0.01" min="0.01" required
                                 wire:model.blur="invoice_lines.{{ $idx }}.price.price_amount"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                                class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                                :class="clientErrors.length && !(parseFloat($wire.invoice_lines[{{ $idx }}]?.price?.price_amount) >= 0.01) ? 'border-red-500' : 'border-gray-300'"
                                 placeholder="0.00" />
                             @error('invoice_lines.' . $idx . '.price.price_amount')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
@@ -622,7 +689,7 @@
         </div>
 
         <div class="flex flex-wrap gap-4">
-            <button wire:click.prevent="validateIRN" wire:loading.attr="disabled" wire:target="validateIRN"
+            <button @click.prevent="runAction('validateIRN')" wire:loading.attr="disabled" wire:target="validateIRN"
                 class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center cursor-pointer">
                 <span wire:loading.remove wire:target="validateIRN">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -646,7 +713,7 @@
                 </span>
             </button>
 
-            <button wire:click.prevent="validateInvoice" wire:loading.attr="disabled" wire:target="validateInvoice"
+            <button @click.prevent="runAction('validateInvoice')" wire:loading.attr="disabled" wire:target="validateInvoice"
                 class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center cursor-pointer">
                 <span wire:loading.remove wire:target="validateInvoice">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -707,7 +774,7 @@
             Cancel
         </a>
 
-        <button wire:click.prevent="updateInvoice" wire:loading.attr="disabled" wire:target="updateInvoice"
+        <button @click.prevent="runAction('updateInvoice')" wire:loading.attr="disabled" wire:target="updateInvoice"
             class="px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all flex items-center font-semibold text-lg shadow-lg disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
             <span wire:loading.remove wire:target="updateInvoice">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

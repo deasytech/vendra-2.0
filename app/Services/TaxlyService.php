@@ -318,6 +318,21 @@ class TaxlyService
         }
     }
 
+    /** Get Quantity Codes */
+    public function getQuantityCodes(): array
+    {
+        try {
+            $res = $this->client()->get('/resources/quantity-codes');
+            $res->throw();
+            return $res->json();
+        } catch (RequestException $e) {
+            throw $this->handleRequestException($e);
+        } catch (Throwable $e) {
+            Log::error('Taxly getQuantityCodes error', ['error' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
     /** Lookup TIN */
     public function getTin(string $tinNumber): array
     {

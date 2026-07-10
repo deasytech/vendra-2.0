@@ -88,10 +88,16 @@ class InvoiceEdit extends Component
         'invoice_lines' => 'required|array|min:1',
         'invoice_lines.*.item.name' => 'required|string',
         'invoice_lines.*.item.description' => 'required|string',
-        'invoice_lines.*.hsn_code' => 'nullable|string|max:50',
-        'invoice_lines.*.isic_code' => 'nullable|string|max:50',
+        'invoice_lines.*.hsn_code' => 'nullable|required_without:invoice_lines.*.isic_code|string|max:50',
+        'invoice_lines.*.isic_code' => 'nullable|required_without:invoice_lines.*.hsn_code|regex:/^[0-9]{4}$/',
         'invoice_lines.*.invoiced_quantity' => 'required|numeric|min:0.01',
         'invoice_lines.*.price.price_amount' => 'required|numeric|min:0.01',
+    ];
+
+    protected $messages = [
+        'invoice_lines.*.hsn_code.required_without' => 'Select a Product Category (HSN) or Service Category (ISIC) code.',
+        'invoice_lines.*.isic_code.required_without' => 'Select a Product Category (HSN) or Service Category (ISIC) code.',
+        'invoice_lines.*.isic_code.regex' => 'The service category (ISIC) code must be a valid 4-digit code.',
     ];
 
     public function mount(Invoice $invoice)
@@ -671,7 +677,13 @@ class InvoiceEdit extends Component
 
     public function updateInvoice()
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            $this->message = $e->getMessage();
+            return;
+        }
 
         $this->submitting = true;
         $this->computeTotals();
@@ -798,7 +810,15 @@ class InvoiceEdit extends Component
     public function validateInvoice()
     {
         $this->validating = true;
-        $this->validate();
+
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            $this->message = $e->getMessage();
+            $this->validating = false;
+            return;
+        }
 
         $this->ensureEntityIdentifiers();
 
@@ -899,6 +919,9 @@ class InvoiceEdit extends Component
 
             $this->message = 'IRN validation successful! Ready to submit.';
             $this->dispatch('validation-success', message: 'IRN structure is valid');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->setErrorBag($e->validator->getMessageBag());
+            $this->message = $e->getMessage();
         } catch (Throwable $e) {
             $readableError = $this->extractReadableFirsError($e);
             $this->addError('validation', $readableError);

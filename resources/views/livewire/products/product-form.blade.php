@@ -52,7 +52,7 @@
                         if (!term) {
                             return this.options;
                         }
-
+                
                         return this.options
                             .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
                     },
@@ -113,7 +113,7 @@
                         if (!term) {
                             return this.options;
                         }
-
+                
                         return this.options
                             .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
                     },
@@ -193,8 +193,60 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Unit of Measure <span
                         class="text-red-500">*</span></label>
-                <input type="text" wire:model="unit_of_measure" placeholder="unit"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 @error('unit_of_measure') border-red-500 @enderror">
+                <div class="relative" x-data="{
+                    open: false,
+                    query: '',
+                    options: @js($unit_codes),
+                    init() {
+                        const selected = this.options.find(item => item.code === @js($unit_of_measure));
+                        this.query = selected ? selected.description : '';
+                    },
+                    matches() {
+                        const term = this.query.toLowerCase().trim();
+                        if (!term) {
+                            return this.options;
+                        }
+                
+                        return this.options
+                            .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
+                    },
+                    filtered() {
+                        return this.matches().slice(0, 50);
+                    },
+                    select(item) {
+                        this.query = item.description;
+                        this.open = false;
+                        $wire.set('unit_of_measure', item.code);
+                    },
+                    onInput() {
+                        this.open = true;
+                        $wire.set('unit_of_measure', '');
+                    }
+                }" @click.outside="open = false">
+                    <input type="text" x-model="query" @focus="open = true" @input="onInput()"
+                        placeholder="Quantity measurement code..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 @error('unit_of_measure') border-red-500 @enderror">
+
+                    <div x-show="open" x-transition
+                        class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-56 overflow-y-auto">
+                        <template x-if="filtered().length === 0">
+                            <div class="px-3 py-2 text-sm text-gray-500">No matching unit of measure.</div>
+                        </template>
+
+                        <template x-for="item in filtered()" :key="item.code">
+                            <button type="button" @click="select(item)"
+                                class="w-full text-left px-3 py-2 hover:bg-emerald-50">
+                                <div class="text-sm text-gray-800" x-text="item.description"></div>
+                                <div class="text-xs text-gray-500" x-text="item.code"></div>
+                            </button>
+                        </template>
+
+                        <div x-show="matches().length > filtered().length"
+                            class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 sticky bottom-0 bg-white"
+                            x-text="`Showing ${filtered().length} of ${matches().length} — keep typing to narrow down`">
+                        </div>
+                    </div>
+                </div>
                 @error('unit_of_measure')
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
