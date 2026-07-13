@@ -87,4 +87,6 @@ spec:
     - protocol: TCP
       port: 3306
       targetPort: 3306
-  type: LoadBalancer
+  # ClusterIP only: MySQL must never be reachable from outside the cluster.
+  # Reach it via `kubectl port-forward svc/mysql-service 3306:3306 -n vendra`.
+  type: ClusterIP
