@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: lite-akraa
-  namespace: akraa
+  name: akraa-lite
+  namespace: akraa-lite
   labels:
-    app: lite-akraa
+    app: akraa-lite
     environment: production
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: lite-akraa
+      app: akraa-lite
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -19,11 +19,11 @@ spec:
   template:
     metadata:
       labels:
-        app: lite-akraa
+        app: akraa-lite
     spec:
       initContainers:
         - name: copy-files
-          image: registry.digitalocean.com/vendra-registry/lite-akraa:latest
+          image: registry.digitalocean.com/vendra-registry/akraa-lite:latest
           command:
             [
               "sh",
@@ -35,14 +35,14 @@ spec:
               mountPath: /shared-files
       containers:
         - name: app
-          image: registry.digitalocean.com/vendra-registry/lite-akraa:latest
+          image: registry.digitalocean.com/vendra-registry/akraa-lite:latest
           ports:
             - containerPort: 9000
           envFrom:
             - configMapRef:
-                name: lite-akraa-config
+                name: akraa-lite-config
             - secretRef:
-                name: lite-akraa-secret
+                name: akraa-lite-secret
           env:
             - name: CONTAINER_ROLE
               value: "app"
@@ -108,10 +108,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: app-service
-  namespace: akraa
+  namespace: akraa-lite
 spec:
   selector:
-    app: lite-akraa
+    app: akraa-lite
   ports:
     - name: http
       protocol: TCP
@@ -123,11 +123,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nginx-service
-  namespace: akraa
+  namespace: akraa-lite
   annotations: {}
 spec:
   selector:
-    app: lite-akraa
+    app: akraa-lite
   ports:
     - name: http
       protocol: TCP

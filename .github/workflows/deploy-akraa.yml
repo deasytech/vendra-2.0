@@ -1,15 +1,16 @@
-name: Deploy Akraa (v-lite)
+name: Deploy Akraa Lite
 
 on:
   push:
-    tags:
-      - "v-lite*"
+    branches:
+      - main
+  workflow_dispatch:
 
 env:
   REGISTRY: registry.digitalocean.com/vendra-registry
-  IMAGE_NAME: lite-akraa
-  NAMESPACE: akraa
-  DEPLOYMENT_NAME: lite-akraa
+  IMAGE_NAME: akraa-lite
+  NAMESPACE: akraa-lite
+  DEPLOYMENT_NAME: akraa-lite
   APP_HOST: lite.akraa.io
 
 jobs:
@@ -19,6 +20,8 @@ jobs:
   build:
     name: Build & Push Image
     runs-on: ubuntu-latest
+    environment:
+      name: akraa
 
     outputs:
       image_tag: ${{ steps.meta.outputs.tag }}
@@ -27,10 +30,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Extract tag name
+      - name: Compute image tag
         id: meta
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${GITHUB_SHA::7}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "📦  Image tag: ${TAG}"
 
@@ -60,10 +63,10 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
   # ────────────────────────────────────────────────────────────────
-  # Job 2 – Deploy to Kubernetes (akraa namespace)
+  # Job 2 – Deploy to Kubernetes (akraa-lite namespace)
   # ────────────────────────────────────────────────────────────────
   deploy:
-    name: Deploy to Akraa (K8s)
+    name: Deploy to Akraa Lite (K8s)
     runs-on: ubuntu-latest
     needs: build
     environment:
@@ -88,14 +91,70 @@ jobs:
           kubectl get nodes
 
       # ── Apply manifests ──────────────────────────────────────────
-      - name: Apply Kubernetes manifests (akraa)
+      - name: Apply Kubernetes manifests (akraa-lite)
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          TAXLY_API_KEY: ${{ secrets.TAXLY_API_KEY }}
+          TAXLY_INTEGRATOR_SERVICE_ID: ${{ secrets.TAXLY_INTEGRATOR_SERVICE_ID }}
+          FIRS_PUBLIC_KEY: ${{ secrets.FIRS_PUBLIC_KEY }}
+          FIRS_CERTIFICATE: ${{ secrets.FIRS_CERTIFICATE }}
+          MAIL_MAILER: ${{ secrets.MAIL_MAILER }}
+          MAIL_HOST: ${{ secrets.MAIL_HOST }}
+          MAIL_PORT: ${{ secrets.MAIL_PORT }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_ENCRYPTION: ${{ secrets.MAIL_ENCRYPTION }}
         run: |
-          # Ensure namespace exists first
-          kubectl apply -f k8s/environments/akraa/secret.yaml
-          kubectl apply -f k8s/environments/akraa/configmap.yaml
-          kubectl apply -f k8s/environments/akraa/nginx-config.yaml
-          kubectl apply -f k8s/environments/akraa/app.yaml
-          kubectl apply -f k8s/environments/akraa/ingress.yaml
+          # 1. Namespace must exist before anything else
+          kubectl apply -f k8s/environments/akraa-lite/namespace.yaml
+
+          # 2. ClusterIssuer — cert-manager needs this to issue the TLS cert.
+          #    Applied cluster-wide (no namespace) so it can serve any namespace.
+          kubectl apply -f k8s/letsencrypt-issuer.yaml
+
+          # 3. App configuration. Secret is templated — envsubst fills in
+          #    ${VAR} placeholders from GitHub Secrets (exposed as env vars
+          #    on this step). Only the listed vars are substituted so that
+          #    any literal $ signs in non-templated fields are left alone.
+          kubectl apply -f k8s/environments/akraa-lite/configmap.yaml
+          kubectl apply -f k8s/environments/akraa-lite/nginx-config.yaml
+          envsubst '$APP_KEY $DB_PASSWORD $MYSQL_ROOT_PASSWORD $TAXLY_API_KEY $TAXLY_INTEGRATOR_SERVICE_ID $FIRS_PUBLIC_KEY $FIRS_CERTIFICATE $MAIL_MAILER $MAIL_HOST $MAIL_PORT $MAIL_USERNAME $MAIL_PASSWORD $MAIL_ENCRYPTION' \
+            < k8s/environments/akraa-lite/secret.yaml \
+            | kubectl apply -f -
+
+          # 4. Data tier — MySQL and Redis with persistent volumes
+          kubectl apply -f k8s/environments/akraa-lite/mysql.yaml
+          kubectl apply -f k8s/environments/akraa-lite/redis.yaml
+
+      # ── Wait for data tier ───────────────────────────────────────
+      - name: Wait for MySQL and Redis to be ready
+        run: |
+          echo "⏳ Waiting for MySQL..."
+          kubectl wait --for=condition=ready pod \
+            -l app=mysql \
+            -n ${{ env.NAMESPACE }} \
+            --timeout=300s
+
+          echo "⏳ Waiting for Redis..."
+          kubectl wait --for=condition=ready pod \
+            -l app=redis \
+            -n ${{ env.NAMESPACE }} \
+            --timeout=120s
+
+          echo "✅ Data tier ready"
+
+      # ── Workload ─────────────────────────────────────────────────
+      - name: Deploy application workload
+        run: |
+          # 5. Workload — app only starts after DB is confirmed ready
+          kubectl apply -f k8s/environments/akraa-lite/app.yaml
+
+          # 6. Ingress last — cert-manager begins ACME HTTP-01 challenge
+          #    only after the ingress + ClusterIssuer are both present.
+          kubectl apply -f k8s/environments/akraa-lite/ingress.yaml
 
       # ── Update image tag in the running deployment ───────────────
       - name: Set image to new tag
@@ -116,6 +175,29 @@ jobs:
           kubectl rollout status deployment/${{ env.DEPLOYMENT_NAME }} \
             -n ${{ env.NAMESPACE }} --timeout=300s
 
+      # ── Wait for TLS certificate ─────────────────────────────────
+      - name: Wait for TLS certificate (cert-manager)
+        run: |
+          echo "⏳ Waiting for cert-manager to issue TLS certificate..."
+          # Poll for up to 3 minutes; cert-manager usually issues in < 60 s
+          for i in $(seq 1 18); do
+            STATUS=$(kubectl get certificate akraa-lite-tls \
+              -n ${{ env.NAMESPACE }} \
+              -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "NotFound")
+            if [ "$STATUS" = "True" ]; then
+              echo "✅ TLS certificate is Ready"
+              exit 0
+            fi
+            echo "  attempt ${i}/18 – certificate status: ${STATUS} – waiting 10 s…"
+            sleep 10
+          done
+          echo "⚠️  Certificate not yet Ready after 3 minutes."
+          echo "    Check: kubectl describe certificate akraa-lite-tls -n ${{ env.NAMESPACE }}"
+          echo "    Check: kubectl describe certificaterequest -n ${{ env.NAMESPACE }}"
+          echo "    Check: kubectl describe challenge -n ${{ env.NAMESPACE }}"
+          # Non-fatal: cert-manager may still be processing; app is already running
+          exit 0
+
       # ── Database migrations ──────────────────────────────────────
       - name: Run database migrations
         run: |
@@ -133,21 +215,33 @@ jobs:
       # ── Deployment summary ───────────────────────────────────────
       - name: Verify deployment
         run: |
-          echo "=== Pods ==="
+          echo "=== All Pods ==="
           kubectl get pods -n ${{ env.NAMESPACE }}
+          echo ""
+          echo "=== MySQL ==="
+          kubectl get deployment mysql -n ${{ env.NAMESPACE }} 2>/dev/null || echo "MySQL not found"
+          echo ""
+          echo "=== Redis ==="
+          kubectl get deployment redis -n ${{ env.NAMESPACE }} 2>/dev/null || echo "Redis not found"
           echo ""
           echo "=== Services ==="
           kubectl get services -n ${{ env.NAMESPACE }}
           echo ""
           echo "=== Ingress ==="
           kubectl get ingress -n ${{ env.NAMESPACE }}
+          echo ""
+          echo "=== TLS Certificate ==="
+          kubectl get certificate -n ${{ env.NAMESPACE }} 2>/dev/null || echo "No certificates found (cert-manager may not be installed)"
+          echo ""
+          echo "=== ClusterIssuer ==="
+          kubectl get clusterissuer letsencrypt-prod -o wide 2>/dev/null || echo "ClusterIssuer not found"
 
       - name: Write job summary
         if: always()
         run: |
           TAG="${{ needs.build.outputs.image_tag }}"
           {
-            echo "## 🚀 Akraa Deployment – ${TAG}"
+            echo "## 🚀 Akraa Lite Deployment – ${TAG}"
             echo ""
             echo "| Field | Value |"
             echo "|-------|-------|"

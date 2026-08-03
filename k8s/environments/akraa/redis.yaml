@@ -1,0 +1,99 @@
+# Redis for the akraa-lite environment
+# Used for: cache, sessions, queues (see configmap.yaml)
+# Storage: 2Gi DigitalOcean Block Storage for persistence
+
+# ── Persistent Volume Claim ───────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-akraa-lite-pvc
+  namespace: akraa-lite
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: do-block-storage
+
+---
+# ── Deployment ────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: akraa-lite
+  labels:
+    app: redis
+    environment: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  strategy:
+    type: Recreate          # IMPORTANT: must be Recreate for single-replica stateful workloads
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          # Enable AOF persistence so data survives pod restarts
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --appendfsync
+            - everysec
+          volumeMounts:
+            - name: redis-storage
+              mountPath: /data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "150m"
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+      volumes:
+        - name: redis-storage
+          persistentVolumeClaim:
+            claimName: redis-akraa-lite-pvc
+
+---
+# ── Service ───────────────────────────────────────────────────────────────────
+# ClusterIP only — Redis must never be exposed outside the cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: akraa-lite
+spec:
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP
