@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
     name: nginx-config
-    namespace: akraa
+    namespace: akraa-lite
 data:
     default.conf: |
         server {
@@ -48,8 +48,10 @@ data:
                 deny all;
             }
 
-            # Cache static files
+            # Cache static files — fall back to index.php so framework-served
+            # assets like /livewire/livewire.js still resolve through Laravel.
             location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+                try_files $uri /index.php?$query_string;
                 expires 30d;
                 add_header Cache-Control "public, immutable";
             }
