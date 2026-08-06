@@ -6,7 +6,8 @@ use App\Models\Invoice;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Barryvdh\DomPDF\Facade\Pdf;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\Image\ImagickImageBackEnd;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
@@ -60,13 +61,30 @@ class ExchangeInvoiceShow extends Component
   public function downloadInvoice()
   {
     try {
-      // Generate PDF for exchange invoice
-      $pdfPath = $this->generateExchangeInvoicePdf();
+      $invoice = Invoice::with(['lines', 'organization', 'customer', 'taxTotals'])
+        ->findOrFail($this->invoice->id);
 
-      return response()->download($pdfPath, 'exchange-invoice-' . $this->invoice->invoice_reference . '.pdf', [
+      $filename = 'exchange-invoice-' . Str::slug($invoice->invoice_reference ?: ('ref-' . $invoice->id)) . '.pdf';
+
+      $settingScope = [
+        'tenant_id' => $invoice->tenant_id,
+        'organization_id' => $invoice->organization_id,
+        'user_id' => null,
+      ];
+
+      $pdf = Pdf::loadView('pdf.invoice', [
+        'invoice' => $invoice,
+        'qrDataUri' => $this->qrDataUri,
+        'irn' => $invoice->irn,
+        'settingScope' => $settingScope,
+      ])->setPaper('a4', 'portrait');
+
+      return response()->streamDownload(function () use ($pdf) {
+        echo $pdf->output();
+      }, $filename, [
         'Content-Type' => 'application/pdf',
-      ])->deleteFileAfterSend(true);
-    } catch (\Exception $e) {
+      ]);
+    } catch (\Throwable $e) {
       logger()->error('Exchange invoice PDF generation failed', [
         'invoice_id' => $this->invoice->id,
         'error' => $e->getMessage(),
@@ -74,22 +92,6 @@ class ExchangeInvoiceShow extends Component
 
       session()->flash('error', 'Failed to generate PDF: ' . $e->getMessage());
     }
-  }
-
-  private function generateExchangeInvoicePdf()
-  {
-    // For now, return a placeholder or use existing PDF generation
-    // You can implement custom PDF generation for exchange invoices here
-    $existingPdf = $this->invoice->attachments()
-      ->where('file_name', 'like', '%.pdf')
-      ->first();
-
-    if ($existingPdf && Storage::exists($existingPdf->file_path)) {
-      return Storage::path($existingPdf->file_path);
-    }
-
-    // Fallback: generate a simple PDF or throw exception
-    throw new \Exception('PDF generation for exchange invoices not yet implemented');
   }
 
   private function generateQrCode(string $data): string
