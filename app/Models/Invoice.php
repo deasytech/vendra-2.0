@@ -29,7 +29,8 @@ class Invoice extends Model
         'legal_monetary_total',
         'metadata',
         'transmit',
-        'delivered'
+        'delivered',
+        'related_invoice_id',
     ];
 
     protected $casts = [
@@ -57,6 +58,11 @@ class Invoice extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function relatedInvoice()
+    {
+        return $this->belongsTo(Invoice::class, 'related_invoice_id');
     }
 
     public function lines()

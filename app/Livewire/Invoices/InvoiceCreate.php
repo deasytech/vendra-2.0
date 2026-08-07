@@ -29,6 +29,8 @@ class InvoiceCreate extends Component
     public $issue_date;
     public $due_date;
     public $invoice_type_code = '396';
+    public $related_invoice_id;
+    public $related_invoices = [];
     public $document_currency_code = 'NGN';
     public $invoice_lines = [];
     public $supplier = [];
@@ -77,9 +79,12 @@ class InvoiceCreate extends Component
 
     protected $tax_category_id = 'STANDARD_VAT';
 
+    protected $noteInvoiceTypeCodes = ['380', '384'];
+
     protected $rules = [
         'invoice_reference' => 'required|string|max:255',
         'issue_date' => 'required|date',
+        'related_invoice_id' => 'required_if:invoice_type_code,380,384',
         'invoice_lines' => 'required|array|min:1',
         'invoice_lines.*.product_id' => 'nullable|integer',
         'invoice_lines.*.hsn_code' => 'nullable|required_without:invoice_lines.*.isic_code|string|max:50',
@@ -96,6 +101,7 @@ class InvoiceCreate extends Component
         'invoice_lines.*.hsn_code.required_without' => 'Select a Product Category (HSN) or Service Category (ISIC) code.',
         'invoice_lines.*.isic_code.required_without' => 'Select a Product Category (HSN) or Service Category (ISIC) code.',
         'invoice_lines.*.isic_code.regex' => 'The service category (ISIC) code must be a valid 4-digit code.',
+        'related_invoice_id.required_if' => 'Select the original invoice this credit/debit note applies to.',
     ];
 
     public function mount()
@@ -125,8 +131,23 @@ class InvoiceCreate extends Component
         $this->loadInvoiceTypes();
         $this->loadCurrencies();
         $this->loadTaxes();
+        $this->loadRelatedInvoices();
 
         $this->invoice_lines = [$this->emptyInvoiceLine()];
+    }
+
+    /**
+     * Load previously submitted invoices that can be referenced as the
+     * original invoice for a credit/debit note (FIRS billing_reference).
+     */
+    private function loadRelatedInvoices()
+    {
+        $this->related_invoices = Invoice::whereNotNull('irn')
+            ->where('transmit', '!=', 'DRAFT')
+            ->orderByDesc('issue_date')
+            ->limit(200)
+            ->get(['id', 'invoice_reference', 'irn', 'issue_date'])
+            ->toArray();
     }
 
     /**
@@ -575,6 +596,35 @@ class InvoiceCreate extends Component
         }, $this->allowance_charges);
     }
 
+    /**
+     * FIRS requires billing_reference (original invoice's irn/issue_date)
+     * whenever the invoice type is a Credit Note (380) or Debit Note (384).
+     */
+    private function isNoteInvoiceType(): bool
+    {
+        return in_array($this->invoice_type_code, $this->noteInvoiceTypeCodes, true);
+    }
+
+    private function buildBillingReference(): ?array
+    {
+        if (!$this->isNoteInvoiceType() || !$this->related_invoice_id) {
+            return null;
+        }
+
+        $relatedInvoice = Invoice::find($this->related_invoice_id);
+
+        if (!$relatedInvoice) {
+            return null;
+        }
+
+        return [
+            [
+                'irn' => $relatedInvoice->irn,
+                'issue_date' => optional($relatedInvoice->issue_date)->format('Y-m-d') ?? $relatedInvoice->issue_date,
+            ],
+        ];
+    }
+
     public function saveAsDraft()
     {
         try {
@@ -601,6 +651,7 @@ class InvoiceCreate extends Component
                 'tenant_id' => $this->tenant_id,
                 'organization_id' => $this->organization_id,
                 'customer_id' => $this->customer_id,
+                'related_invoice_id' => $this->isNoteInvoiceType() ? $this->related_invoice_id : null,
                 'invoice_reference' => $this->invoice_reference,
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
@@ -698,6 +749,7 @@ class InvoiceCreate extends Component
                 'tenant_id' => $this->tenant_id,
                 'organization_id' => $this->organization_id,
                 'customer_id' => $this->customer_id,
+                'related_invoice_id' => $this->isNoteInvoiceType() ? $this->related_invoice_id : null,
                 'invoice_reference' => $this->invoice_reference,
                 'issue_date' => $this->issue_date,
                 'due_date' => $this->due_date,
@@ -750,6 +802,11 @@ class InvoiceCreate extends Component
             if ($this->customer_id || !empty($this->customer['party_name'])) {
                 $payload['accounting_customer_party'] = $this->customer;
                 $payload['invoice_kind'] = 'B2B';
+            }
+
+            // FIRS requires billing_reference for credit/debit notes
+            if ($billingReference = $this->buildBillingReference()) {
+                $payload['billing_reference'] = $billingReference;
             }
 
             Log::debug('Invoice submission payload', ['payload' => $payload]);
@@ -894,6 +951,12 @@ class InvoiceCreate extends Component
                 $payload['accounting_customer_party'] = $this->customer;
                 $payload['invoice_kind'] = 'B2B';
             }
+
+            // FIRS requires billing_reference for credit/debit notes
+            if ($billingReference = $this->buildBillingReference()) {
+                $payload['billing_reference'] = $billingReference;
+            }
+
             Log::debug('Invoice validation payload', ['payload' => $payload]);
             // call Taxly service for validation
             // Get the Taxly tenant_id from settings (the one from Taxly integrator registration)

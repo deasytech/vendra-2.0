@@ -134,7 +134,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Invoice Type</label>
-                <select wire:model.defer="invoice_type_code"
+                <select wire:model.live="invoice_type_code"
                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
                     <option value="">Select invoice type...</option>
                     @foreach ($invoice_types as $type)
@@ -144,6 +144,26 @@
                     @endforeach
                 </select>
             </div>
+
+            @if (in_array($invoice_type_code, ['380', '384']))
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Original Invoice *
+                    </label>
+                    <select wire:model.defer="related_invoice_id"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
+                        <option value="">Select original invoice...</option>
+                        @foreach ($related_invoices as $related)
+                            <option value="{{ $related['id'] }}">
+                                {{ $related['invoice_reference'] }} ({{ $related['irn'] }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('related_invoice_id')
+                        <span class="text-sm text-red-600 mt-1 block">{{ $message }}</span>
+                    @enderror
+                </div>
+            @endif
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Currency</label>
@@ -302,7 +322,8 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
                             <input wire:model.lazy="invoice_lines.{{ $idx }}.item.name" required
                                 class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
-                                :class="clientErrors.length && !(($wire.invoice_lines[{{ $idx }}]?.item?.name || '').trim()) ? 'border-red-500' : 'border-gray-300'"
+                                :class="clientErrors.length && !(($wire.invoice_lines[{{ $idx }}]?.item?.name || '')
+                                    .trim()) ? 'border-red-500' : 'border-gray-300'"
                                 placeholder="Product or service name" />
                             @error('invoice_lines.' . $idx . '.item.name')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
@@ -419,7 +440,9 @@
                                 <input type="text" x-model="query" @focus="open = true" @input="onInput()"
                                     placeholder="Search service code..."
                                     class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 @error('invoice_lines.' . $idx . '.isic_code') border-red-500 @enderror"
-                                    :class="clientErrors.length && !($wire.invoice_lines[{{ $idx }}]?.hsn_code) && !/^\d{4}$/.test($wire.invoice_lines[{{ $idx }}]?.isic_code || '') ? 'border-red-500' : 'border-gray-300'">
+                                    :class="clientErrors.length && !($wire.invoice_lines[{{ $idx }}]?.hsn_code) && !
+                                        /^\d{4}$/.test($wire.invoice_lines[{{ $idx }}]?.isic_code || '') ?
+                                        'border-red-500' : 'border-gray-300'">
 
                                 <div x-show="open" x-transition
                                     class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-56 overflow-y-auto">
@@ -463,7 +486,8 @@
                             <input type="number" step="0.01" min="0.01" required
                                 wire:model.blur="invoice_lines.{{ $idx }}.price.price_amount"
                                 class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
-                                :class="clientErrors.length && !(parseFloat($wire.invoice_lines[{{ $idx }}]?.price?.price_amount) >= 0.01) ? 'border-red-500' : 'border-gray-300'"
+                                :class="clientErrors.length && !(parseFloat($wire.invoice_lines[{{ $idx }}]?.price
+                                    ?.price_amount) >= 0.01) ? 'border-red-500' : 'border-gray-300'"
                                 placeholder="0.00" />
                             @error('invoice_lines.' . $idx . '.price.price_amount')
                                 <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span>
@@ -713,7 +737,8 @@
                 </span>
             </button>
 
-            <button @click.prevent="runAction('validateInvoice')" wire:loading.attr="disabled" wire:target="validateInvoice"
+            <button @click.prevent="runAction('validateInvoice')" wire:loading.attr="disabled"
+                wire:target="validateInvoice"
                 class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center cursor-pointer">
                 <span wire:loading.remove wire:target="validateInvoice">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
