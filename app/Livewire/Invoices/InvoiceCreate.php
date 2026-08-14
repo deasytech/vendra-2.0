@@ -261,8 +261,10 @@ class InvoiceCreate extends Component
     {
         $this->taxes = [
             ['code' => 'STANDARD_VAT', 'name' => 'Standard Value-Added Tax', 'percent' => 7.5],
+            ['code' => 'EXEMPTED', 'name' => 'Tax Exemption', 'percent' => 0.0],
             ['code' => 'ZERO_VAT', 'name' => 'Zero Value-Added Tax', 'percent' => 0.0],
             ['code' => 'ZERO_GST', 'name' => 'Zero Goods and Services Tax', 'percent' => 0.0],
+            ['code' => 'REDUCED_VAT', 'name' => 'Reduced Value-Added Tax', 'percent' => 7.5],
         ];
     }
 
@@ -295,6 +297,12 @@ class InvoiceCreate extends Component
                 ];
             }
         } else {
+            $this->customer_id = null;
+            $this->customer_name = '';
+            $this->customer_tin = '';
+            $this->customer_email = '';
+            $this->customer_phone = '';
+
             $this->customer = [
                 'party_name' => '',
                 'tin' => '',
@@ -542,6 +550,12 @@ class InvoiceCreate extends Component
 
     public function updatedWithholdingTaxEnabled($value)
     {
+        $this->computeTotals();
+    }
+
+    public function updatedWithholdingTaxRate($value)
+    {
+        $this->withholding_tax_rate = max(0, min(100, (float) $value));
         $this->computeTotals();
     }
 
@@ -1241,5 +1255,4 @@ class InvoiceCreate extends Component
 
         return $taxTotals;
     }
-
 }

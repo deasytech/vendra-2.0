@@ -6,6 +6,7 @@ use App\Scopes\TenantScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Organization extends Model
 {
@@ -39,6 +40,29 @@ class Organization extends Model
     protected static function booted()
     {
         static::addGlobalScope(new TenantScope);
+
+        static::creating(function (Organization $organization) {
+            if (empty($organization->slug) && $organization->legal_name) {
+                $organization->slug = static::generateUniqueSlug($organization->legal_name);
+            }
+        });
+    }
+
+    /**
+     * The organization slug identifies the tenant on guest pages (e.g. /login/{slug})
+     * where there is no authenticated user to resolve tenant context from.
+     */
+    protected static function generateUniqueSlug(string $name): string
+    {
+        $base = Str::slug($name);
+        $slug = $base;
+        $suffix = 1;
+
+        while (static::withoutGlobalScopes()->withTrashed()->where('slug', $slug)->exists()) {
+            $slug = $base . '-' . ++$suffix;
+        }
+
+        return $slug;
     }
 
     /**

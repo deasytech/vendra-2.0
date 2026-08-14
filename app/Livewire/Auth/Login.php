@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +25,28 @@ class Login extends Component
     public string $password = '';
 
     public bool $remember = false;
+
+    public ?Organization $organization = null;
+
+    /**
+     * Bind the tenant-branded organization (resolved via the /login/{organization:slug}
+     * route) into the container so the auth layout's logo/branding components can
+     * resolve the correct tenant scope before any user is authenticated.
+     *
+     * Note: this is intentionally read from the route rather than declared as a
+     * mount() parameter — Livewire's implicit model binding treats any Eloquent-typed
+     * mount() parameter as required, and attempts (and fails) to bind it even on the
+     * plain /login route where no {organization} segment exists.
+     */
+    public function mount(): void
+    {
+        $organization = request()->route('organization');
+
+        if ($organization instanceof Organization) {
+            $this->organization = $organization;
+            app()->instance('currentOrganization', $organization);
+        }
+    }
 
     /**
      * Handle an incoming authentication request.

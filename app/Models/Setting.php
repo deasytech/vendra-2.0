@@ -252,9 +252,15 @@ class Setting extends Model
   {
     $user = Auth::user();
 
+    // On guest pages (e.g. the tenant-branded login screen) there is no
+    // authenticated user to derive tenant/organization from, so fall back
+    // to whichever organization the current request resolved via its route
+    // (see Login::mount() binding `currentOrganization` into the container).
+    $guestOrganization = $user ? null : (app()->bound('currentOrganization') ? app('currentOrganization') : null);
+
     $defaults = [
-      'tenant_id' => $user?->tenant_id,
-      'organization_id' => $user?->organization_id,
+      'tenant_id' => $user?->tenant_id ?? $guestOrganization?->tenant_id,
+      'organization_id' => $user?->organization_id ?? $guestOrganization?->id,
       'user_id' => null,
     ];
 

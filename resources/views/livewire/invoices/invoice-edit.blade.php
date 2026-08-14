@@ -617,15 +617,21 @@
             Withholding Tax
         </h2>
 
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-4 flex-wrap gap-y-2">
             <label class="flex items-center cursor-pointer">
                 <input type="checkbox" wire:model.live="withholding_tax_enabled" class="mr-2 rounded">
                 <span class="text-gray-700">Apply Withholding Tax</span>
             </label>
             @if ($withholding_tax_enabled)
+                <label class="flex items-center">
+                    <span class="text-sm text-gray-600 mr-2">Rate:</span>
+                    <input type="number" step="0.01" min="0" max="100"
+                        wire:model.live="withholding_tax_rate"
+                        class="w-20 px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700">
+                    <span class="text-sm text-gray-600 ml-1">%</span>
+                </label>
                 <span class="text-sm text-gray-600">
-                    ({{ $withholding_tax_rate }}% of total:
-                    {{ $selected_currency_symbol }}{{ number_format($withholding_tax_amount, 2) }})
+                    (of total: {{ $selected_currency_symbol }}{{ number_format($withholding_tax_amount, 2) }})
                 </span>
             @endif
         </div>
