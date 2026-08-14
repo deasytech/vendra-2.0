@@ -313,7 +313,7 @@ class TaxlyWebhookController extends Controller
           'price' => [
             'price_amount' => (float) ($item['unitPrice'] ?? data_get($item, 'price.price_amount', 0)),
             'base_quantity' => (float) data_get($item, 'price.base_quantity', 1),
-            'price_unit' => ($invoiceData['currency'] ?? data_get($invoiceData, 'document_currency_code', 'NGN')) . ' per 1',
+            'price_unit' => $invoiceData['currency'] ?? data_get($invoiceData, 'document_currency_code', 'NGN'),
           ],
           'order' => $index,
         ]);
