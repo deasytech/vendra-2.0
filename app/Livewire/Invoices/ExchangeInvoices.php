@@ -372,7 +372,7 @@ class ExchangeInvoices extends Component
           'price' => [
             'price_amount' => (float) ($item['unitPrice'] ?? data_get($item, 'price.price_amount', 0)),
             'base_quantity' => (float) data_get($item, 'price.base_quantity', 1),
-            'price_unit' => $invoiceData['currency'] ?? 'NGN',
+            'price_unit' => $item['priceUnit'] ?? data_get($item, 'price.price_unit', 'C62'),
           ],
           'order' => $index,
         ]);

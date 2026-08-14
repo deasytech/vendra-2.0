@@ -713,7 +713,7 @@ class InvoicesIndex extends Component
                 'price' => [
                     'price_amount' => (float) ($line->price['price_amount'] ?? 0),
                     'base_quantity' => (float) ($line->price['base_quantity'] ?? 1),
-                    'price_unit' => $line->price['price_unit'] ?? 'NGN',
+                    'price_unit' => $line->price['price_unit'] ?? 'C62',
                 ],
                 'order' => $index,
             ];

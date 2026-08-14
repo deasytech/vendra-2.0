@@ -354,7 +354,7 @@ class InvoiceCreate extends Component
             'price' => [
                 'price_amount' => 0,
                 'base_quantity' => 1,
-                'price_unit' => $this->selected_currency
+                'price_unit' => 'C62'
             ],
             'item' => ['name' => '', 'description' => ''],
             'order' => $order,
@@ -419,7 +419,7 @@ class InvoiceCreate extends Component
         $this->invoice_lines[$index]['price'] = [
             'price_amount' => (float) $product->unit_price,
             'base_quantity' => 1,
-            'price_unit' => $product->currency_code ?: $this->selected_currency,
+            'price_unit' => $product->unit_of_measure ?: 'C62',
         ];
 
         if ($product->currency_code && $product->currency_code !== $this->selected_currency) {
@@ -539,11 +539,6 @@ class InvoiceCreate extends Component
         $currency = collect($this->currencies)->firstWhere('code', $value);
         $this->selected_currency_symbol = $currency['symbol'] ?? '₦';
         $this->document_currency_code = $value;
-
-        // Update price units for all invoice lines
-        foreach ($this->invoice_lines as $index => $line) {
-            $this->invoice_lines[$index]['price']['price_unit'] = $value;
-        }
 
         $this->computeTotals();
     }
@@ -1076,7 +1071,7 @@ class InvoiceCreate extends Component
                 'price' => [
                     'price_amount' => (float) ($line['price']['price_amount'] ?? 0),
                     'base_quantity' => (float) ($line['price']['base_quantity'] ?? 1),
-                    'price_unit' => $line['price']['price_unit'] ?? 'NGN',
+                    'price_unit' => $line['price']['price_unit'] ?? 'C62',
                 ],
                 'order' => $index,
             ];
