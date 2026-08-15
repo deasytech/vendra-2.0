@@ -354,7 +354,7 @@ class InvoiceCreate extends Component
             'price' => [
                 'price_amount' => 0,
                 'base_quantity' => 1,
-                'price_unit' => 'C62'
+                'price_unit' => ''
             ],
             'item' => ['name' => '', 'description' => ''],
             'order' => $order,
@@ -404,23 +404,57 @@ class InvoiceCreate extends Component
             return;
         }
 
+        $productCategory = $product->product_category
+            ?: TaxlyResourceOptions::hsCodeDescription($product->hsn_code);
+
         $this->invoice_lines[$index]['product_id'] = $product->id;
         $this->invoice_lines[$index]['hsn_code'] = $product->hsn_code;
         $this->invoice_lines[$index]['isic_code'] = $product->isic_code ?: null;
-        $this->invoice_lines[$index]['product_category'] = $product->product_category
-            ?: TaxlyResourceOptions::hsCodeDescription($product->hsn_code);
+        $this->invoice_lines[$index]['product_category'] = $productCategory;
         $this->invoice_lines[$index]['service_category'] = $product->service_category
             ?: TaxlyResourceOptions::serviceCodeDescription($product->isic_code);
+
+        // The HS-code picker is wire:ignore'd (so its own search state survives
+        // Livewire re-renders), so it can't pick up this server-side change on its own —
+        // tell it explicitly to refresh its displayed value.
+        $this->dispatch(
+            'hs-code-changed',
+            index: $index,
+            code: $product->hsn_code,
+            description: $productCategory,
+        );
+
+        // The service-code picker is wire:ignore'd (so its own search state survives
+        // Livewire re-renders), so it can't pick up this server-side change on its own —
+        // tell it explicitly to refresh its displayed value.
+        $this->dispatch(
+            'service-code-changed',
+            index: $index,
+            code: $product->isic_code,
+            description: $this->invoice_lines[$index]['service_category'],
+        );
         $this->invoice_lines[$index]['item'] = [
             'name' => $product->name,
             'description' => $product->description ?: $product->name,
             'sellers_item_identification' => $product->sku,
         ];
+        $priceUnit = $product->unit_of_measure ?: '';
+
         $this->invoice_lines[$index]['price'] = [
             'price_amount' => (float) $product->unit_price,
             'base_quantity' => 1,
-            'price_unit' => $product->unit_of_measure ?: 'C62',
+            'price_unit' => $priceUnit,
         ];
+
+        // The unit-of-measure picker is wire:ignore'd (so its own search state survives
+        // Livewire re-renders), so it can't pick up this server-side change on its own —
+        // tell it explicitly to refresh its displayed value.
+        $this->dispatch(
+            'unit-of-measure-changed',
+            index: $index,
+            code: $priceUnit,
+            description: $priceUnit ? TaxlyResourceOptions::quantityCodeDescription($priceUnit) : null,
+        );
 
         if ($product->currency_code && $product->currency_code !== $this->selected_currency) {
             $this->selected_currency = $product->currency_code;
@@ -1071,7 +1105,7 @@ class InvoiceCreate extends Component
                 'price' => [
                     'price_amount' => (float) ($line['price']['price_amount'] ?? 0),
                     'base_quantity' => (float) ($line['price']['base_quantity'] ?? 1),
-                    'price_unit' => $line['price']['price_unit'] ?? 'C62',
+                    'price_unit' => $line['price']['price_unit'] ?: 'C62',
                 ],
                 'order' => $index,
             ];
@@ -1169,10 +1203,7 @@ class InvoiceCreate extends Component
 
     public function render()
     {
-        return view('livewire.invoices.invoice-create', [
-            'hs_codes' => TaxlyResourceOptions::hsCodes(),
-            'service_codes' => TaxlyResourceOptions::serviceCodes(),
-        ]);
+        return view('livewire.invoices.invoice-create');
     }
 
     public function extractReadableFirsError(Throwable $e)

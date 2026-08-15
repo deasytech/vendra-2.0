@@ -297,7 +297,7 @@ class InvoiceEdit extends Component
                     'price' => [
                         'price_amount' => 0,
                         'base_quantity' => 1,
-                        'price_unit' => 'C62'
+                        'price_unit' => ''
                     ],
                     'item' => ['name' => '', 'description' => ''],
                     'order' => 0,
@@ -511,7 +511,7 @@ class InvoiceEdit extends Component
             'price' => [
                 'price_amount' => 0,
                 'base_quantity' => 1,
-                'price_unit' => 'C62'
+                'price_unit' => ''
             ],
             'item' => ['name' => '', 'description' => ''],
             'order' => count($this->invoice_lines),
@@ -771,7 +771,7 @@ class InvoiceEdit extends Component
                     'price' => [
                         'price_amount' => $line['price']['price_amount'] ?? 0,
                         'base_quantity' => $line['price']['base_quantity'] ?? 1,
-                        'price_unit' => $line['price']['price_unit'] ?? 'C62'
+                        'price_unit' => $line['price']['price_unit'] ?: 'C62'
                     ],
                     'item' => [
                         'name' => $line['item']['name'] ?? '',
@@ -853,10 +853,7 @@ class InvoiceEdit extends Component
 
     public function render()
     {
-        return view('livewire.invoices.invoice-edit', [
-            'hs_codes' => TaxlyResourceOptions::hsCodes(),
-            'service_codes' => TaxlyResourceOptions::serviceCodes(),
-        ]);
+        return view('livewire.invoices.invoice-edit');
     }
 
     public function validateInvoice()
@@ -1014,7 +1011,7 @@ class InvoiceEdit extends Component
                 'price' => [
                     'price_amount' => (float) ($line['price']['price_amount'] ?? 0),
                     'base_quantity' => (float) ($line['price']['base_quantity'] ?? 1),
-                    'price_unit' => $line['price']['price_unit'] ?? 'C62',
+                    'price_unit' => $line['price']['price_unit'] ?: 'C62',
                 ],
                 'order' => $index,
             ];

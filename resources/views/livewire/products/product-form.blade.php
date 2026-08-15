@@ -41,45 +41,103 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">HSN Code</label>
                 <div class="relative" x-data="{
                     open: false,
-                    query: '',
-                    options: @js($hs_codes),
-                    init() {
-                        const selected = this.options.find(item => item.code === @js($hsn_code));
-                        this.query = selected ? selected.description : '';
-                    },
-                    matches() {
-                        const term = this.query.toLowerCase().trim();
-                        if (!term) {
-                            return this.options;
+                    loading: false,
+                    error: '',
+                    query: @js($hsn_code_description ?: $hsn_code),
+                    items: [],
+                    page: 1,
+                    lastPage: 1,
+                    debounceTimer: null,
+                    requestId: 0,
+                    dirty: false,
+                    async load(page) {
+                        this.loading = true;
+                        this.error = '';
+                        const requestId = ++this.requestId;
+
+                        try {
+                            const url = new URL(@js(route('products.hs-codes')));
+                            url.searchParams.set('page', page);
+
+                            if (this.query.trim()) {
+                                url.searchParams.set('q', this.query.trim());
+                            }
+
+                            const res = await fetch(url);
+
+                            if (!res.ok) {
+                                throw new Error('request failed');
+                            }
+
+                            const json = await res.json();
+
+                            if (requestId !== this.requestId) {
+                                return;
+                            }
+
+                            this.items = json.data;
+                            this.page = json.current_page;
+                            this.lastPage = json.last_page;
+                        } catch (e) {
+                            if (requestId === this.requestId) {
+                                this.error = 'Failed to fetch HSN codes.';
+                            }
+                        } finally {
+                            if (requestId === this.requestId) {
+                                this.loading = false;
+                            }
                         }
-                
-                        return this.options
-                            .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
                     },
-                    filtered() {
-                        return this.matches().slice(0, 50);
+                    onFocus() {
+                        this.open = true;
+
+                        if (this.items.length === 0) {
+                            this.load(1);
+                        }
                     },
                     select(item) {
                         this.query = item.description;
+                        this.dirty = false;
                         this.open = false;
                         $wire.set('hsn_code', item.code);
                     },
                     onInput() {
                         this.open = true;
-                        $wire.set('hsn_code', '');
+
+                        if (!this.dirty) {
+                            this.dirty = true;
+                            $wire.set('hsn_code', '');
+                        }
+
+                        clearTimeout(this.debounceTimer);
+                        this.debounceTimer = setTimeout(() => this.load(1), 300);
+                    },
+                    prevPage() {
+                        if (this.page > 1) {
+                            this.load(this.page - 1);
+                        }
+                    },
+                    nextPage() {
+                        if (this.page < this.lastPage) {
+                            this.load(this.page + 1);
+                        }
                     }
-                }" @click.outside="open = false">
-                    <input type="text" x-model="query" @focus="open = true" @input="onInput()"
+                }" wire:ignore @click.outside="open = false">
+                    <input type="text" x-model="query" @focus="onFocus()" @input="onInput()"
                         placeholder="Search HSN code..."
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 @error('hsn_code') border-red-500 @enderror">
 
                     <div x-show="open" x-transition
                         class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-56 overflow-y-auto">
-                        <template x-if="filtered().length === 0">
+                        <div x-show="loading" class="px-3 py-2 text-sm text-gray-500">Loading...</div>
+
+                        <div x-show="!loading && error" class="px-3 py-2 text-sm text-red-600" x-text="error"></div>
+
+                        <template x-if="!loading && !error && items.length === 0">
                             <div class="px-3 py-2 text-sm text-gray-500">No matching HSN code.</div>
                         </template>
 
-                        <template x-for="item in filtered()" :key="item.code">
+                        <template x-for="item in items" :key="item.code">
                             <button type="button" @click="select(item)"
                                 class="w-full text-left px-3 py-2 hover:bg-emerald-50">
                                 <div class="text-sm text-gray-800" x-text="item.description"></div>
@@ -87,9 +145,17 @@
                             </button>
                         </template>
 
-                        <div x-show="matches().length > filtered().length"
-                            class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 sticky bottom-0 bg-white"
-                            x-text="`Showing ${filtered().length} of ${matches().length} — keep typing to narrow down`">
+                        <div x-show="!loading && !error"
+                            class="flex items-center justify-between px-3 py-2 text-xs text-gray-500 border-t border-gray-100 sticky bottom-0 bg-white">
+                            <button type="button" @click.stop="prevPage()" :disabled="page <= 1"
+                                class="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+                                &laquo; Prev
+                            </button>
+                            <span x-text="`Page ${page} of ${lastPage}`"></span>
+                            <button type="button" @click.stop="nextPage()" :disabled="page >= lastPage"
+                                class="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+                                Next &raquo;
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -102,45 +168,103 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">ISIC Code</label>
                 <div class="relative" x-data="{
                     open: false,
-                    query: '',
-                    options: @js($service_codes),
-                    init() {
-                        const selected = this.options.find(item => item.code === @js($isic_code));
-                        this.query = selected ? selected.description : '';
-                    },
-                    matches() {
-                        const term = this.query.toLowerCase().trim();
-                        if (!term) {
-                            return this.options;
+                    loading: false,
+                    error: '',
+                    query: @js($service_category ?: $isic_code),
+                    items: [],
+                    page: 1,
+                    lastPage: 1,
+                    debounceTimer: null,
+                    requestId: 0,
+                    dirty: false,
+                    async load(page) {
+                        this.loading = true;
+                        this.error = '';
+                        const requestId = ++this.requestId;
+
+                        try {
+                            const url = new URL(@js(route('products.service-codes')));
+                            url.searchParams.set('page', page);
+
+                            if (this.query.trim()) {
+                                url.searchParams.set('q', this.query.trim());
+                            }
+
+                            const res = await fetch(url);
+
+                            if (!res.ok) {
+                                throw new Error('request failed');
+                            }
+
+                            const json = await res.json();
+
+                            if (requestId !== this.requestId) {
+                                return;
+                            }
+
+                            this.items = json.data;
+                            this.page = json.current_page;
+                            this.lastPage = json.last_page;
+                        } catch (e) {
+                            if (requestId === this.requestId) {
+                                this.error = 'Failed to fetch service codes.';
+                            }
+                        } finally {
+                            if (requestId === this.requestId) {
+                                this.loading = false;
+                            }
                         }
-                
-                        return this.options
-                            .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
                     },
-                    filtered() {
-                        return this.matches().slice(0, 50);
+                    onFocus() {
+                        this.open = true;
+
+                        if (this.items.length === 0) {
+                            this.load(1);
+                        }
                     },
                     select(item) {
                         this.query = item.description;
+                        this.dirty = false;
                         this.open = false;
                         $wire.set('isic_code', item.code);
                     },
                     onInput() {
                         this.open = true;
-                        $wire.set('isic_code', '');
+
+                        if (!this.dirty) {
+                            this.dirty = true;
+                            $wire.set('isic_code', '');
+                        }
+
+                        clearTimeout(this.debounceTimer);
+                        this.debounceTimer = setTimeout(() => this.load(1), 300);
+                    },
+                    prevPage() {
+                        if (this.page > 1) {
+                            this.load(this.page - 1);
+                        }
+                    },
+                    nextPage() {
+                        if (this.page < this.lastPage) {
+                            this.load(this.page + 1);
+                        }
                     }
-                }" @click.outside="open = false">
-                    <input type="text" x-model="query" @focus="open = true" @input="onInput()"
+                }" wire:ignore @click.outside="open = false">
+                    <input type="text" x-model="query" @focus="onFocus()" @input="onInput()"
                         placeholder="Search service code..."
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 @error('isic_code') border-red-500 @enderror">
 
                     <div x-show="open" x-transition
                         class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-56 overflow-y-auto">
-                        <template x-if="filtered().length === 0">
+                        <div x-show="loading" class="px-3 py-2 text-sm text-gray-500">Loading...</div>
+
+                        <div x-show="!loading && error" class="px-3 py-2 text-sm text-red-600" x-text="error"></div>
+
+                        <template x-if="!loading && !error && items.length === 0">
                             <div class="px-3 py-2 text-sm text-gray-500">No matching service code.</div>
                         </template>
 
-                        <template x-for="item in filtered()" :key="item.code">
+                        <template x-for="item in items" :key="item.code">
                             <button type="button" @click="select(item)"
                                 class="w-full text-left px-3 py-2 hover:bg-emerald-50">
                                 <div class="text-sm text-gray-800" x-text="item.description"></div>
@@ -148,9 +272,17 @@
                             </button>
                         </template>
 
-                        <div x-show="matches().length > filtered().length"
-                            class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 sticky bottom-0 bg-white"
-                            x-text="`Showing ${filtered().length} of ${matches().length} — keep typing to narrow down`">
+                        <div x-show="!loading && !error"
+                            class="flex items-center justify-between px-3 py-2 text-xs text-gray-500 border-t border-gray-100 sticky bottom-0 bg-white">
+                            <button type="button" @click.stop="prevPage()" :disabled="page <= 1"
+                                class="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+                                &laquo; Prev
+                            </button>
+                            <span x-text="`Page ${page} of ${lastPage}`"></span>
+                            <button type="button" @click.stop="nextPage()" :disabled="page >= lastPage"
+                                class="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+                                Next &raquo;
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -195,45 +327,105 @@
                         class="text-red-500">*</span></label>
                 <div class="relative" x-data="{
                     open: false,
-                    query: '',
-                    options: @js($unit_codes),
-                    init() {
-                        const selected = this.options.find(item => item.code === @js($unit_of_measure));
-                        this.query = selected ? selected.description : '';
-                    },
-                    matches() {
-                        const term = this.query.toLowerCase().trim();
-                        if (!term) {
-                            return this.options;
+                    loading: false,
+                    error: '',
+                    query: @js($unit_of_measure_description ?: $unit_of_measure),
+                    items: [],
+                    page: 1,
+                    lastPage: 1,
+                    debounceTimer: null,
+                    requestId: 0,
+                    dirty: false,
+                    async load(page) {
+                        this.loading = true;
+                        this.error = '';
+                        const requestId = ++this.requestId;
+
+                        try {
+                            const url = new URL(@js(route('products.quantity-codes')));
+                            url.searchParams.set('page', page);
+
+                            if (this.query.trim()) {
+                                url.searchParams.set('q', this.query.trim());
+                            }
+
+                            const res = await fetch(url);
+
+                            if (!res.ok) {
+                                throw new Error('request failed');
+                            }
+
+                            const json = await res.json();
+
+                            if (requestId !== this.requestId) {
+                                return;
+                            }
+
+                            this.items = json.data;
+                            this.page = json.current_page;
+                            this.lastPage = json.last_page;
+                        } catch (e) {
+                            if (requestId === this.requestId) {
+                                this.error = 'Failed to fetch quantity codes.';
+                            }
+                        } finally {
+                            if (requestId === this.requestId) {
+                                this.loading = false;
+                            }
                         }
-                
-                        return this.options
-                            .filter(item => (`${item.code} ${item.description}`).toLowerCase().includes(term));
                     },
-                    filtered() {
-                        return this.matches().slice(0, 50);
+                    onFocus() {
+                        this.open = true;
+
+                        if (this.items.length === 0) {
+                            this.load(1);
+                        }
                     },
                     select(item) {
                         this.query = item.description;
+                        this.dirty = false;
                         this.open = false;
                         $wire.set('unit_of_measure', item.code);
                     },
                     onInput() {
                         this.open = true;
-                        $wire.set('unit_of_measure', '');
+
+                        // Only sync to Livewire once per edit — not on every keystroke — so
+                        // the component isn't re-rendered/reset mid-search.
+                        if (!this.dirty) {
+                            this.dirty = true;
+                            $wire.set('unit_of_measure', '');
+                        }
+
+                        clearTimeout(this.debounceTimer);
+                        this.debounceTimer = setTimeout(() => this.load(1), 300);
+                    },
+                    prevPage() {
+                        if (this.page > 1) {
+                            this.load(this.page - 1);
+                        }
+                    },
+                    nextPage() {
+                        if (this.page < this.lastPage) {
+                            this.load(this.page + 1);
+                        }
                     }
-                }" @click.outside="open = false">
-                    <input type="text" x-model="query" @focus="open = true" @input="onInput()"
+                }" wire:ignore @click.outside="open = false">
+                    <input type="text" x-model="query" @focus="onFocus()" @input="onInput()"
                         placeholder="Quantity measurement code..."
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 @error('unit_of_measure') border-red-500 @enderror">
 
                     <div x-show="open" x-transition
                         class="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-56 overflow-y-auto">
-                        <template x-if="filtered().length === 0">
+                        <div x-show="loading" class="px-3 py-2 text-sm text-gray-500">Loading...</div>
+
+                        <div x-show="!loading && error" class="px-3 py-2 text-sm text-red-600" x-text="error"></div>
+
+                        <template x-if="!loading && !error && items.length === 0">
                             <div class="px-3 py-2 text-sm text-gray-500">No matching unit of measure.</div>
                         </template>
 
-                        <template x-for="item in filtered()" :key="item.code">
+                        <template x-for="item in items" :key="item.code">
                             <button type="button" @click="select(item)"
                                 class="w-full text-left px-3 py-2 hover:bg-emerald-50">
                                 <div class="text-sm text-gray-800" x-text="item.description"></div>
@@ -241,9 +433,17 @@
                             </button>
                         </template>
 
-                        <div x-show="matches().length > filtered().length"
-                            class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100 sticky bottom-0 bg-white"
-                            x-text="`Showing ${filtered().length} of ${matches().length} — keep typing to narrow down`">
+                        <div x-show="!loading && !error"
+                            class="flex items-center justify-between px-3 py-2 text-xs text-gray-500 border-t border-gray-100 sticky bottom-0 bg-white">
+                            <button type="button" @click.stop="prevPage()" :disabled="page <= 1"
+                                class="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+                                &laquo; Prev
+                            </button>
+                            <span x-text="`Page ${page} of ${lastPage}`"></span>
+                            <button type="button" @click.stop="nextPage()" :disabled="page >= lastPage"
+                                class="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+                                Next &raquo;
+                            </button>
                         </div>
                     </div>
                 </div>

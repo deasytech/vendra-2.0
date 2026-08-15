@@ -100,9 +100,8 @@ class ProductEdit extends Component
     public function render()
     {
         return view('livewire.products.product-edit', [
-            'hs_codes' => TaxlyResourceOptions::hsCodes(),
-            'service_codes' => TaxlyResourceOptions::serviceCodes(),
-            'unit_codes' => TaxlyResourceOptions::quantityCodes(),
+            'hsn_code_description' => TaxlyResourceOptions::hsCodeDescription($this->hsn_code),
+            'unit_of_measure_description' => TaxlyResourceOptions::quantityCodeDescription($this->unit_of_measure),
         ]);
     }
 }

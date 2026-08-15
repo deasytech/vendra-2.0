@@ -288,11 +288,11 @@ class TaxlyService
         }
     }
 
-    /** Get HS Codes */
-    public function getHsCodes(): array
+    /** Get HS Codes (paginated, 20 per page) */
+    public function getHsCodes(int $page = 1): array
     {
         try {
-            $res = $this->client()->get('/resources/hs-codes');
+            $res = $this->client()->get('/resources/hs-codes', ['page' => $page]);
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
@@ -303,11 +303,44 @@ class TaxlyService
         }
     }
 
-    /** Get Service / ISIC Codes */
-    public function getServiceCodes(): array
+    /**
+     * Fetch several hs-codes pages concurrently.
+     * Returns a page => decoded response map; a page missing from the map means it failed.
+     */
+    public function getHsCodesPages(array $pages): array
+    {
+        if (empty($pages)) {
+            return [];
+        }
+
+        $responses = Http::pool(fn ($pool) => collect($pages)->map(
+            fn (int $page) => $pool->as((string) $page)
+                ->timeout(30)
+                ->withHeaders($this->headers)
+                ->baseUrl($this->baseUrl)
+                ->get('/resources/hs-codes', ['page' => $page])
+        )->all());
+
+        $result = [];
+
+        foreach ($pages as $page) {
+            $res = $responses[(string) $page] ?? null;
+
+            if ($res instanceof \Illuminate\Http\Client\Response && $res->successful()) {
+                $result[$page] = $res->json();
+            } else {
+                Log::warning('Taxly getHsCodesPages: page failed', ['page' => $page]);
+            }
+        }
+
+        return $result;
+    }
+
+    /** Get Service / ISIC Codes (paginated, 20 per page) */
+    public function getServiceCodes(int $page = 1): array
     {
         try {
-            $res = $this->client()->get('/resources/services-codes');
+            $res = $this->client()->get('/resources/services-codes', ['page' => $page]);
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
@@ -318,11 +351,44 @@ class TaxlyService
         }
     }
 
-    /** Get Quantity Codes */
-    public function getQuantityCodes(): array
+    /**
+     * Fetch several services-codes pages concurrently.
+     * Returns a page => decoded response map; a page missing from the map means it failed.
+     */
+    public function getServiceCodesPages(array $pages): array
+    {
+        if (empty($pages)) {
+            return [];
+        }
+
+        $responses = Http::pool(fn ($pool) => collect($pages)->map(
+            fn (int $page) => $pool->as((string) $page)
+                ->timeout(15)
+                ->withHeaders($this->headers)
+                ->baseUrl($this->baseUrl)
+                ->get('/resources/services-codes', ['page' => $page])
+        )->all());
+
+        $result = [];
+
+        foreach ($pages as $page) {
+            $res = $responses[(string) $page] ?? null;
+
+            if ($res instanceof \Illuminate\Http\Client\Response && $res->successful()) {
+                $result[$page] = $res->json();
+            } else {
+                Log::warning('Taxly getServiceCodesPages: page failed', ['page' => $page]);
+            }
+        }
+
+        return $result;
+    }
+
+    /** Get Quantity Codes (paginated, 20 per page) */
+    public function getQuantityCodes(int $page = 1): array
     {
         try {
-            $res = $this->client()->get('/resources/quantity-codes');
+            $res = $this->client()->get('/resources/quantity-codes', ['page' => $page]);
             $res->throw();
             return $res->json();
         } catch (RequestException $e) {
@@ -331,6 +397,39 @@ class TaxlyService
             Log::error('Taxly getQuantityCodes error', ['error' => $e->getMessage()]);
             throw $e;
         }
+    }
+
+    /**
+     * Fetch several quantity-codes pages concurrently.
+     * Returns a page => decoded response map; a page missing from the map means it failed.
+     */
+    public function getQuantityCodesPages(array $pages): array
+    {
+        if (empty($pages)) {
+            return [];
+        }
+
+        $responses = Http::pool(fn ($pool) => collect($pages)->map(
+            fn (int $page) => $pool->as((string) $page)
+                ->timeout(15)
+                ->withHeaders($this->headers)
+                ->baseUrl($this->baseUrl)
+                ->get('/resources/quantity-codes', ['page' => $page])
+        )->all());
+
+        $result = [];
+
+        foreach ($pages as $page) {
+            $res = $responses[(string) $page] ?? null;
+
+            if ($res instanceof \Illuminate\Http\Client\Response && $res->successful()) {
+                $result[$page] = $res->json();
+            } else {
+                Log::warning('Taxly getQuantityCodesPages: page failed', ['page' => $page]);
+            }
+        }
+
+        return $result;
     }
 
     /** Lookup TIN */
