@@ -54,7 +54,7 @@ class Register extends Component
 
                 $validated['entity_id'] = $result['entity_id'] ?? null;
             } catch (\Exception $e) {
-                Log::error('TaxPayer login failed', ['email' => $validated['email'], 'error' => $e->getMessage()]);
+                Log::error('TaxPayer registration failed', ['email' => $validated['email'], 'error' => $e->getMessage()]);
                 $this->addError('email', 'FIRS authentication failed. Please check your credentials.');
                 return;
             }

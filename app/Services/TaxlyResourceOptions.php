@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\HsCode;
 use App\Models\QuantityCode;
 use App\Models\ServiceCode;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -17,25 +18,42 @@ class TaxlyResourceOptions
      * table means the dropdown never re-fetches/re-transfers the full ~5,612-row
      * upstream list, and search covers the whole taxonomy, not just one loaded page.
      *
-     * Falls back to a single live upstream page (no search) if the table hasn't been
-     * synced yet, so the dropdown still works before the first sync runs.
+     * When the table hasn't been synced yet, the fast single-page live fallback is used
+     * for empty queries, and searches scan the full cached upstream catalog so filtering
+     * still works before the first sync runs.
      */
     public static function hsCodesSearch(?string $term, int $page = 1): ?array
     {
-        if (app()->environment('testing')) {
-            $items = self::fallbackHsCodes();
-
-            return [
-                'current_page' => 1,
-                'data' => $items,
-                'last_page' => 1,
-                'per_page' => count($items),
-                'total' => count($items),
-            ];
-        }
-
         if (HsCode::query()->count() === 0) {
-            return self::hsCodesLivePage($page);
+            // Not synced yet: keep the fast single-page path for empty queries, but
+            // actually filter the entire upstream catalog when the user searches so the
+            // dropdown does not silently ignore the term.
+            if (app()->environment('testing')) {
+                $items = self::fallbackHsCodes();
+
+                return [
+                    'current_page' => 1,
+                    'data' => $items,
+                    'last_page' => 1,
+                    'per_page' => count($items),
+                    'total' => count($items),
+                ];
+            }
+
+            if ($term === null || trim($term) === '') {
+                return self::hsCodesLivePage($page);
+            }
+
+            return self::catalogSearch(
+                self::liveCatalog(
+                    'hs-codes',
+                    ['hscode', 'hs_code', 'code'],
+                    fn (TaxlyService $service) => $service->getHsCodes(1),
+                    fn (TaxlyService $service, array $pages) => $service->getHsCodesPages($pages),
+                ),
+                $term,
+                $page,
+            ) ?? self::hsCodesLivePage($page);
         }
 
         $term = trim((string) $term);
@@ -98,25 +116,42 @@ class TaxlyResourceOptions
      * never re-fetches/re-transfers the full ~2,162-row upstream list, and search covers
      * the whole taxonomy, not just one loaded page.
      *
-     * Falls back to a single live upstream page (no search) if the table hasn't been
-     * synced yet, so the dropdown still works before the first sync runs.
+     * When the table hasn't been synced yet, the fast single-page live fallback is used
+     * for empty queries, and searches scan the full cached upstream catalog so filtering
+     * still works before the first sync runs.
      */
     public static function serviceCodesSearch(?string $term, int $page = 1): ?array
     {
-        if (app()->environment('testing')) {
-            $items = self::fallbackServiceCodes();
-
-            return [
-                'current_page' => 1,
-                'data' => $items,
-                'last_page' => 1,
-                'per_page' => count($items),
-                'total' => count($items),
-            ];
-        }
-
         if (ServiceCode::query()->count() === 0) {
-            return self::serviceCodesLivePage($page);
+            // Not synced yet: keep the fast single-page path for empty queries, but
+            // actually filter the entire upstream catalog when the user searches so the
+            // dropdown does not silently ignore the term.
+            if (app()->environment('testing')) {
+                $items = self::fallbackServiceCodes();
+
+                return [
+                    'current_page' => 1,
+                    'data' => $items,
+                    'last_page' => 1,
+                    'per_page' => count($items),
+                    'total' => count($items),
+                ];
+            }
+
+            if ($term === null || trim($term) === '') {
+                return self::serviceCodesLivePage($page);
+            }
+
+            return self::catalogSearch(
+                self::liveCatalog(
+                    'service-codes',
+                    ['code', 'service_code', 'isic_code'],
+                    fn (TaxlyService $service) => $service->getServiceCodes(1),
+                    fn (TaxlyService $service, array $pages) => $service->getServiceCodesPages($pages),
+                ),
+                $term,
+                $page,
+            ) ?? self::serviceCodesLivePage($page);
         }
 
         $term = trim((string) $term);
@@ -179,25 +214,42 @@ class TaxlyResourceOptions
      * every page load, and search actually covers the whole taxonomy instead of just
      * whatever page happened to be loaded.
      *
-     * Falls back to a single live upstream page (no search) if the table hasn't been
-     * synced yet, so the dropdown still works before the first sync runs.
+     * When the table hasn't been synced yet, the fast single-page live fallback is used
+     * for empty queries, and searches scan the full cached upstream catalog so filtering
+     * still works before the first sync runs.
      */
     public static function quantityCodesSearch(?string $term, int $page = 1): ?array
     {
-        if (app()->environment('testing')) {
-            $items = self::fallbackQuantityCodes();
-
-            return [
-                'current_page' => 1,
-                'data' => $items,
-                'last_page' => 1,
-                'per_page' => count($items),
-                'total' => count($items),
-            ];
-        }
-
         if (QuantityCode::query()->count() === 0) {
-            return self::quantityCodesLivePage($page);
+            // Not synced yet: keep the fast single-page path for empty queries, but
+            // actually filter the entire upstream catalog when the user searches so the
+            // dropdown does not silently ignore the term.
+            if (app()->environment('testing')) {
+                $items = self::fallbackQuantityCodes();
+
+                return [
+                    'current_page' => 1,
+                    'data' => $items,
+                    'last_page' => 1,
+                    'per_page' => count($items),
+                    'total' => count($items),
+                ];
+            }
+
+            if ($term === null || trim($term) === '') {
+                return self::quantityCodesLivePage($page);
+            }
+
+            return self::catalogSearch(
+                self::liveCatalog(
+                    'quantity-codes',
+                    ['code', 'quantity_code'],
+                    fn (TaxlyService $service) => $service->getQuantityCodes(1),
+                    fn (TaxlyService $service, array $pages) => $service->getQuantityCodesPages($pages),
+                ),
+                $term,
+                $page,
+            ) ?? self::quantityCodesLivePage($page);
         }
 
         $term = trim((string) $term);
@@ -315,6 +367,85 @@ class TaxlyResourceOptions
         return [
             ['code' => 'KGM', 'description' => 'Kilogram'],
             ['code' => 'XBG', 'description' => 'Bag'],
+        ];
+    }
+
+    /**
+     * Load and cache the full normalized catalog for a taxonomy so that, before the
+     * first `taxly:sync-*` run, search still covers the entire list instead of just
+     * whatever page happened to be loaded. Only hits Taxly once per cache window;
+     * subsequent searches filter the cached array in memory.
+     *
+     * @param  array<string>  $codeKeys
+     * @return array<int, array{code: string, description: string}>|null
+     */
+    private static function liveCatalog(string $resource, array $codeKeys, callable $firstPage, callable $getPages): ?array
+    {
+        return Cache::remember("taxly:catalog:{$resource}", now()->addHours(2), function () use ($resource, $codeKeys, $firstPage, $getPages) {
+            try {
+                $service = new TaxlyService();
+                $first = $firstPage($service);
+                $paginator = (array) ($first['data'] ?? []);
+                $items = collect(self::normalize($paginator['data'] ?? [], $codeKeys));
+                $lastPage = (int) ($paginator['last_page'] ?? 1);
+
+                if ($lastPage >= 2) {
+                    foreach (array_chunk(range(2, $lastPage), 20) as $pages) {
+                        foreach ($getPages($service, $pages) as $response) {
+                            $responseData = (array) ($response['data'] ?? []);
+                            $items = $items->merge(self::normalize($responseData['data'] ?? [], $codeKeys));
+                        }
+
+                        usleep(200_000);
+                    }
+                }
+
+                return $items->unique('code')->sortBy('code')->values()->all();
+            } catch (Throwable $e) {
+                Log::warning('Failed to load live taxonomy catalog', ['resource' => $resource, 'error' => $e->getMessage()]);
+
+                return null;
+            }
+        });
+    }
+
+    /**
+     * Filter an in-memory catalog of `['code' => ..., 'description' => ...]` entries
+     * by search term and slice out one page, mirroring the shape returned by the
+     * table-backed search. Returns null when the catalog could not be loaded.
+     *
+     * @param  array<int, array{code: string, description: string}>|null  $catalog
+     * @return array{current_page: int, data: array, last_page: int, per_page: int, total: int}|null
+     */
+    private static function catalogSearch(?array $catalog, ?string $term, int $page): ?array
+    {
+        if ($catalog === null) {
+            return null;
+        }
+
+        $perPage = 20;
+        $term = trim((string) $term);
+
+        if ($term !== '') {
+            $needle = strtolower($term);
+
+            $catalog = array_values(array_filter(
+                $catalog,
+                fn (array $item) => str_contains(strtolower((string) $item['code']), $needle)
+                    || str_contains(strtolower((string) $item['description']), $needle)
+            ));
+        }
+
+        $total = count($catalog);
+        $lastPage = max((int) ceil($total / $perPage), 1);
+        $page = max(min($page, $lastPage), 1);
+
+        return [
+            'current_page' => $page,
+            'data' => array_slice($catalog, ($page - 1) * $perPage, $perPage),
+            'last_page' => $lastPage,
+            'per_page' => $perPage,
+            'total' => $total,
         ];
     }
 

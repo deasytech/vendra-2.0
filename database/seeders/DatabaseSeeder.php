@@ -15,14 +15,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // TaxlyCredential::create([
-        //     'auth_type' => 'api_key',
-        //     'api_key' => config('services.taxly.api_key'),
-        //     'base_url' => config('services.taxly.base_url'),
-        // ]);
+        TaxlyCredential::create([
+            'auth_type' => 'api_key',
+            'api_key' => config('services.taxly.api_key'),
+            'base_url' => config('services.taxly.base_url'),
+        ]);
 
         // Call the SettingsSeeder to populate default settings
-        // $this->call(SettingsSeeder::class);
+        $this->call(SettingsSeeder::class);
+
+        $this->call(RolesAndPermissionsSeeder::class);
 
         // Create Super Admin user and assign role
         $superAdmin = User::factory()->create([
