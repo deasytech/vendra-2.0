@@ -360,7 +360,7 @@
                                 open: false,
                                 loading: false,
                                 error: '',
-                                query: @js(\App\Services\TaxlyResourceOptions::hsCodeDescription($line['hsn_code'] ?? null) ?: ($line['hsn_code'] ?? '')),
+                                query: @js(($line['product_category'] ?? null) ?: (\App\Services\TaxlyResourceOptions::hsCodeDescription($line['hsn_code'] ?? null) ?: ($line['hsn_code'] ?? ''))),
                                 items: [],
                                 page: 1,
                                 lastPage: 1,
@@ -431,6 +431,7 @@
                                     this.dirty = false;
                                     this.open = false;
                                     $wire.set('invoice_lines.{{ $idx }}.hsn_code', item.code);
+                                    $wire.set('invoice_lines.{{ $idx }}.product_category', item.description || item.code);
                                 },
                                 onInput() {
                                     this.open = true;
@@ -502,7 +503,7 @@
                                 open: false,
                                 loading: false,
                                 error: '',
-                                query: @js(\App\Services\TaxlyResourceOptions::serviceCodeDescription($line['isic_code'] ?? null) ?: ($line['isic_code'] ?? '')),
+                                query: @js(($line['service_category'] ?? null) ?: (\App\Services\TaxlyResourceOptions::serviceCodeDescription($line['isic_code'] ?? null) ?: ($line['isic_code'] ?? ''))),
                                 items: [],
                                 page: 1,
                                 lastPage: 1,
@@ -573,6 +574,7 @@
                                     this.dirty = false;
                                     this.open = false;
                                     $wire.set('invoice_lines.{{ $idx }}.isic_code', item.code);
+                                    $wire.set('invoice_lines.{{ $idx }}.service_category', item.description || item.code);
                                 },
                                 onInput() {
                                     this.open = true;

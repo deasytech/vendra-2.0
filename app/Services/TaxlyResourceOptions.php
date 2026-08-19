@@ -346,6 +346,27 @@ class TaxlyResourceOptions
         return collect(self::fallbackServiceCodes())->firstWhere('code', $code)['description'] ?? null;
     }
 
+    /**
+     * Resolve a category description for an HS code, falling back to the code
+     * itself when the local taxonomy has no entry. Taxly rejects invoice lines
+     * where hsn_code is provided but product_category is empty, so a non-empty
+     * string must always be produced for a given code.
+     */
+    public static function hsCodeCategory(?string $code): ?string
+    {
+        return self::hsCodeDescription($code) ?: ($code ?: null);
+    }
+
+    /**
+     * Resolve a category description for a service (ISIC) code, falling back to
+     * the code itself when the local taxonomy has no entry. Taxly requires
+     * service_category whenever isic_code is provided.
+     */
+    public static function serviceCodeCategory(?string $code): ?string
+    {
+        return self::serviceCodeDescription($code) ?: ($code ?: null);
+    }
+
     private static function fallbackHsCodes(): array
     {
         return [

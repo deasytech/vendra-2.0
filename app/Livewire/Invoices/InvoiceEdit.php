@@ -22,6 +22,7 @@ class InvoiceEdit extends Component
     public $invoice;
     public $tenant_id;
     public $organization_id;
+    public $selected_supplier_id;
     public $customer_id;
     public $business_id;
     public $service_id;
@@ -551,7 +552,7 @@ class InvoiceEdit extends Component
             return;
         }
 
-        $this->invoice_lines[$index]['product_category'] = TaxlyResourceOptions::hsCodeDescription($code);
+        $this->invoice_lines[$index]['product_category'] = TaxlyResourceOptions::hsCodeCategory($code);
     }
 
     private function applyServiceCodeToLine(int $index, ?string $code): void
@@ -560,7 +561,7 @@ class InvoiceEdit extends Component
             return;
         }
 
-        $this->invoice_lines[$index]['service_category'] = TaxlyResourceOptions::serviceCodeDescription($code);
+        $this->invoice_lines[$index]['service_category'] = TaxlyResourceOptions::serviceCodeCategory($code);
     }
 
     // Live update when quantity changes
@@ -764,8 +765,10 @@ class InvoiceEdit extends Component
                     'invoice_id' => $this->invoice->id,
                     'hsn_code' => $line['hsn_code'] ?? $this->generateHsnCode(),
                     'isic_code' => $line['isic_code'] ?? null,
-                    'product_category' => $line['product_category'] ?? 'General Items',
-                    'service_category' => $line['service_category'] ?? null,
+                    'product_category' => $line['product_category']
+                        ?: TaxlyResourceOptions::hsCodeCategory($line['hsn_code'] ?? null),
+                    'service_category' => $line['service_category']
+                        ?: TaxlyResourceOptions::serviceCodeCategory($line['isic_code'] ?? null),
                     'invoiced_quantity' => $line['invoiced_quantity'] ?? 1,
                     'quantity' => $line['invoiced_quantity'] ?? 1,
                     'price' => [
@@ -897,6 +900,7 @@ class InvoiceEdit extends Component
                 'tax_currency_code' => $this->document_currency_code, // Required field
                 'payment_status' => 'PENDING', // Required field
                 'accounting_supplier_party' => $this->supplier,
+                'invoice_kind' => 'B2C',
                 'legal_monetary_total' => $this->legal_monetary_total,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly(),
                 // Add required fields for validation
@@ -913,6 +917,7 @@ class InvoiceEdit extends Component
             // Only include customer party if customer is selected
             if ($this->customer_id || !empty($this->customer['party_name'])) {
                 $payload['accounting_customer_party'] = $this->customer;
+                $payload['invoice_kind'] = 'B2B';
             }
 
             // FIRS requires billing_reference for credit/debit notes
@@ -1000,8 +1005,10 @@ class InvoiceEdit extends Component
             return [
                 'hsn_code' => $line['hsn_code'] ?? $this->generateHsnCode(),
                 'isic_code' => $line['isic_code'] ?? null,
-                'product_category' => $line['product_category'] ?? 'General Items',
-                'service_category' => $line['service_category'] ?? null,
+                'product_category' => $line['product_category']
+                    ?: TaxlyResourceOptions::hsCodeCategory($line['hsn_code'] ?? null),
+                'service_category' => $line['service_category']
+                    ?: TaxlyResourceOptions::serviceCodeCategory($line['isic_code'] ?? null),
                 'invoiced_quantity' => (float) ($line['invoiced_quantity'] ?? 0),
                 'line_extension_amount' => (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)),
                 'item' => [

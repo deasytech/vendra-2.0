@@ -71,18 +71,18 @@ class ProductCreate extends Component
 
     public function updatedHsnCode(): void
     {
-        $this->product_category = TaxlyResourceOptions::hsCodeDescription($this->hsn_code) ?? '';
+        $this->product_category = TaxlyResourceOptions::hsCodeCategory($this->hsn_code) ?? '';
     }
 
     public function updatedIsicCode(): void
     {
-        $this->service_category = TaxlyResourceOptions::serviceCodeDescription($this->isic_code) ?? '';
+        $this->service_category = TaxlyResourceOptions::serviceCodeCategory($this->isic_code) ?? '';
     }
 
     private function syncClassificationCategories(): void
     {
-        $this->product_category = TaxlyResourceOptions::hsCodeDescription($this->hsn_code) ?? '';
-        $this->service_category = TaxlyResourceOptions::serviceCodeDescription($this->isic_code) ?? '';
+        $this->product_category = TaxlyResourceOptions::hsCodeCategory($this->hsn_code) ?? '';
+        $this->service_category = TaxlyResourceOptions::serviceCodeCategory($this->isic_code) ?? '';
     }
 
     public function render()

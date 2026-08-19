@@ -22,6 +22,7 @@ class InvoiceCreate extends Component
 {
     public $tenant_id;
     public $organization_id;
+    public $selected_supplier_id;
     public $customer_id;
     public $business_id;
     public $service_id;
@@ -405,14 +406,14 @@ class InvoiceCreate extends Component
         }
 
         $productCategory = $product->product_category
-            ?: TaxlyResourceOptions::hsCodeDescription($product->hsn_code);
+            ?: TaxlyResourceOptions::hsCodeCategory($product->hsn_code);
 
         $this->invoice_lines[$index]['product_id'] = $product->id;
         $this->invoice_lines[$index]['hsn_code'] = $product->hsn_code;
         $this->invoice_lines[$index]['isic_code'] = $product->isic_code ?: null;
         $this->invoice_lines[$index]['product_category'] = $productCategory;
         $this->invoice_lines[$index]['service_category'] = $product->service_category
-            ?: TaxlyResourceOptions::serviceCodeDescription($product->isic_code);
+            ?: TaxlyResourceOptions::serviceCodeCategory($product->isic_code);
 
         // The HS-code picker is wire:ignore'd (so its own search state survives
         // Livewire re-renders), so it can't pick up this server-side change on its own —
@@ -468,7 +469,7 @@ class InvoiceCreate extends Component
             return;
         }
 
-        $this->invoice_lines[$index]['product_category'] = TaxlyResourceOptions::hsCodeDescription($code);
+        $this->invoice_lines[$index]['product_category'] = TaxlyResourceOptions::hsCodeCategory($code);
     }
 
     private function applyServiceCodeToLine(int $index, ?string $code): void
@@ -477,7 +478,7 @@ class InvoiceCreate extends Component
             return;
         }
 
-        $this->invoice_lines[$index]['service_category'] = TaxlyResourceOptions::serviceCodeDescription($code);
+        $this->invoice_lines[$index]['service_category'] = TaxlyResourceOptions::serviceCodeCategory($code);
     }
 
     // Live update when quantity changes
@@ -961,7 +962,7 @@ class InvoiceCreate extends Component
                 'tax_currency_code' => $this->document_currency_code, // Required field
                 'payment_status' => 'PENDING', // Required field
                 'accounting_supplier_party' => $this->supplier,
-                'invoice_type' => 'B2C',
+                'invoice_kind' => 'B2C',
                 'legal_monetary_total' => $this->legal_monetary_total,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly(),
                 // Add required fields for validation
@@ -1113,11 +1114,11 @@ class InvoiceCreate extends Component
             if (!empty($line['hsn_code'])) {
                 $formatted['hsn_code'] = $line['hsn_code'];
                 $formatted['product_category'] = $line['product_category']
-                    ?? TaxlyResourceOptions::hsCodeDescription($line['hsn_code']);
+                    ?: TaxlyResourceOptions::hsCodeCategory($line['hsn_code']);
             } else {
                 $formatted['isic_code'] = $line['isic_code'] ?? null;
                 $formatted['service_category'] = $line['service_category']
-                    ?? TaxlyResourceOptions::serviceCodeDescription($line['isic_code'] ?? null);
+                    ?: TaxlyResourceOptions::serviceCodeCategory($line['isic_code'] ?? null);
             }
 
             return $formatted;
@@ -1131,9 +1132,9 @@ class InvoiceCreate extends Component
         $line['hsn_code'] = ($line['hsn_code'] ?? null) ?: null;
         $line['isic_code'] = ($line['isic_code'] ?? null) ?: null;
         $line['product_category'] = ($line['product_category'] ?? null)
-            ?: TaxlyResourceOptions::hsCodeDescription($line['hsn_code']);
+            ?: TaxlyResourceOptions::hsCodeCategory($line['hsn_code']);
         $line['service_category'] = ($line['service_category'] ?? null)
-            ?: TaxlyResourceOptions::serviceCodeDescription($line['isic_code']);
+            ?: TaxlyResourceOptions::serviceCodeCategory($line['isic_code']);
         $line['line_extension_amount'] = round((float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)), 2);
 
         return $line;

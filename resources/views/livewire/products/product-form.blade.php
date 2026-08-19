@@ -100,6 +100,7 @@
                         this.dirty = false;
                         this.open = false;
                         $wire.set('hsn_code', item.code);
+                        $wire.set('product_category', item.description || item.code);
                     },
                     onInput() {
                         this.open = true;
@@ -227,6 +228,7 @@
                         this.dirty = false;
                         this.open = false;
                         $wire.set('isic_code', item.code);
+                        $wire.set('service_category', item.description || item.code);
                     },
                     onInput() {
                         this.open = true;

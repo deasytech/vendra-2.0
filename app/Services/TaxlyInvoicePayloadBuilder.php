@@ -23,6 +23,7 @@ class TaxlyInvoicePayloadBuilder
       'issue_time' => $invoice->issue_time ?? now()->format('H:i:s'),
       'invoice_type_code' => $invoice->invoice_type_code,
       'payment_status' => $invoice->payment_status,
+      'invoice_kind' => $customer ? 'B2B' : 'B2C',
       'note' => $invoice->note,
       'tax_point_date' => $invoice->tax_point_date,
       'document_currency_code' => $invoice->document_currency_code,
@@ -138,10 +139,12 @@ class TaxlyInvoicePayloadBuilder
 
         if ($line->hsn_code) {
           $payload['hsn_code'] = $line->hsn_code;
-          $payload['product_category'] = $line->product_category;
+          $payload['product_category'] = $line->product_category
+            ?: TaxlyResourceOptions::hsCodeCategory($line->hsn_code);
         } else {
           $payload['isic_code'] = $line->isic_code;
-          $payload['service_category'] = $line->service_category;
+          $payload['service_category'] = $line->service_category
+            ?: TaxlyResourceOptions::serviceCodeCategory($line->isic_code);
         }
 
         return $payload;
