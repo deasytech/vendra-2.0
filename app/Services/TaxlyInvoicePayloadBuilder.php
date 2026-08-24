@@ -63,19 +63,13 @@ class TaxlyInvoicePayloadBuilder
           'issue_date' => $invoice->issue_date,
         ],
       ],
-      'accounting_supplier_party' => [
-        'party_name' => Arr::get($supplier, 'party_name', $organization->legal_name),
-        'tin' => Arr::get($supplier, 'tin', $organization->tin),
-        'email' => Arr::get($supplier, 'email', $organization->email),
-        'telephone' => Arr::get($supplier, 'telephone', $organization->phone),
-        'business_description' => Arr::get($supplier, 'business_description', $organization->business_description),
-        'postal_address' => [
-          'street_name' => $organization->address_line_1,
-          'city_name' => $organization->city_name,
-          'postal_zone' => $organization->postal_code,
-          'country' => 'NG',
-        ],
-      ],
+      'accounting_supplier_party' => array_merge($organization->toPartyObject(), array_filter([
+        'party_name' => Arr::get($supplier, 'party_name'),
+        'tin' => Arr::get($supplier, 'tin'),
+        'email' => Arr::get($supplier, 'email'),
+        'telephone' => Arr::get($supplier, 'telephone'),
+        'business_description' => Arr::get($supplier, 'business_description'),
+      ])),
       'accounting_customer_party' => $customer ? $customer->toPartyObject() : [
         'party_name' => Arr::get($customerParty, 'party_name'),
         'tin' => Arr::get($customerParty, 'tin'),

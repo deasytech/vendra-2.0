@@ -206,7 +206,7 @@ class Dashboard extends Component
       'postal_address.street_name' => 'required|string|max:255',
       'postal_address.city_name' => 'required|string|max:255',
       'postal_address.state_name' => 'required|string|max:255',
-      'postal_address.postal_zone' => 'nullable|string|max:100',
+      'postal_address.postal_zone' => 'required|string|max:100',
       'postal_address.country' => 'required|string|size:2',
       'description' => 'nullable|string|min:50|max:1000',
     ];
@@ -226,11 +226,21 @@ class Dashboard extends Component
     }
 
     // Check if required fields are missing (excluding description)
-    $requiredFields = ['postal_address', 'email', 'phone'];
+    $requiredFields = ['email', 'phone'];
 
     foreach ($requiredFields as $field) {
       $value = $this->organization->$field;
       if (empty($value) || $value === '') {
+        return true;
+      }
+    }
+
+    // postal_address is a JSON column, so a legacy record can have the
+    // array populated while individual keys (e.g. postal_zone) are blank.
+    // Check each required sub-field explicitly rather than the array as a whole.
+    $address = $this->organization->postal_address ?? [];
+    foreach (['street_name', 'city_name', 'state_name', 'postal_zone', 'country'] as $addressField) {
+      if (empty($address[$addressField] ?? null)) {
         return true;
       }
     }

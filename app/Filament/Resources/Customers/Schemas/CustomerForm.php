@@ -15,17 +15,25 @@ class CustomerForm
                     ->numeric(),
                 TextInput::make('name')
                     ->required(),
-                TextInput::make('tin'),
+                TextInput::make('tin')
+                    ->required()
+                    ->minLength(5),
                 TextInput::make('email')
                     ->label('Email address')
-                    ->email(),
+                    ->email()
+                    ->required(),
                 TextInput::make('phone')
-                    ->tel(),
+                    ->tel()
+                    ->required(),
                 TextInput::make('business_description'),
-                TextInput::make('street_name'),
-                TextInput::make('city_name'),
-                TextInput::make('postal_zone'),
-                TextInput::make('state'),
+                TextInput::make('street_name')
+                    ->required(),
+                TextInput::make('city_name')
+                    ->required(),
+                TextInput::make('postal_zone')
+                    ->required(),
+                TextInput::make('state')
+                    ->required(),
                 TextInput::make('country')
                     ->required()
                     ->default('NG'),

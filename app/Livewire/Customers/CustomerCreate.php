@@ -28,7 +28,7 @@ class CustomerCreate extends Component
 
   protected $rules = [
     'name' => 'required|string|max:255',
-    'tin' => 'nullable|string|max:20',
+    'tin' => 'required|string|min:5|max:20',
     'email' => 'required|email|max:255',
     'phone' => 'required|string|max:20',
     'business_description' => 'nullable|string',

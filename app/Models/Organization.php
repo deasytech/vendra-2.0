@@ -79,10 +79,10 @@ class Organization extends Model
             "telephone"            => $this->normalizeTelephone($this->phone),
             "business_description" => $this->description,
             "postal_address" => [
-                "street_name" => $address['street_name'] ?? 'Unknown Street',
-                "city_name"   => $address['city_name'] ?? 'Unknown City',
-                "postal_zone" => $address['postal_zone'] ?? '000000',
-                "country"     => $address['country'] ?? 'NG',
+                "street_name" => filled($address['street_name'] ?? null) ? $address['street_name'] : 'Unknown Street',
+                "city_name"   => filled($address['city_name'] ?? null) ? $address['city_name'] : 'Unknown City',
+                "postal_zone" => filled($address['postal_zone'] ?? null) ? $address['postal_zone'] : '000000',
+                "country"     => filled($address['country'] ?? null) ? $address['country'] : 'NG',
             ],
         ];
     }

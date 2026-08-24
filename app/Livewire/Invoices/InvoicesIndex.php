@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Customer;
 use App\Models\Setting;
 use App\Services\TaxlyService;
+use App\Services\TaxlyResourceOptions;
 use App\Models\TaxlyCredential;
 use App\Jobs\SubmitInvoiceJob;
 use Livewire\Component;
@@ -616,6 +617,7 @@ class InvoicesIndex extends Component
                 'document_currency_code' => $invoice->document_currency_code,
                 'tax_currency_code' => $invoice->document_currency_code,
                 'payment_status' => $invoice->payment_status,
+                'invoice_kind' => 'B2C',
                 'accounting_supplier_party' => $invoice->accounting_supplier_party,
                 'legal_monetary_total' => $legalMonetaryTotal,
                 'invoice_line' => $this->formatInvoiceLinesForTaxly($invoice->lines),
@@ -625,12 +627,20 @@ class InvoicesIndex extends Component
                         'payment_due_date' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : now()->addDays(30)->format('Y-m-d'),
                     ],
                 ],
+                'allowance_charge' => $invoice->allowance_charge ?: [
+                    [
+                        'charge_indicator' => true,
+                        'amount' => (float) ($legalMonetaryTotal['payable_amount'] ?? 0),
+                        'amount_type' => 'fixed',
+                    ],
+                ],
                 'tax_total' => $this->buildTaxTotal($invoice, $legalMonetaryTotal),
             ];
 
             // Only include customer party if customer is selected
             if ($invoice->customer_id || !empty($invoice->accounting_customer_party['party_name'])) {
                 $payload['accounting_customer_party'] = $invoice->accounting_customer_party;
+                $payload['invoice_kind'] = 'B2B';
             }
 
             // Call Taxly service to submit to FIRS using Taxly tenant_id from settings
@@ -702,11 +712,7 @@ class InvoicesIndex extends Component
     private function formatInvoiceLinesForTaxly($lines)
     {
         return $lines->map(function ($line, $index) {
-            return [
-                'hsn_code' => $line->hsn_code ?? 'GENERAL',
-                'isic_code' => $line->isic_code,
-                'product_category' => $line->product_category ?? 'General Items',
-                'service_category' => $line->service_category,
+            $formatted = [
                 'invoiced_quantity' => (float) ($line->invoiced_quantity ?? 0),
                 'line_extension_amount' => (float) (($line->price['price_amount'] ?? 0) * ($line->invoiced_quantity ?? 0)),
                 'item' => $line->item ?? ['name' => 'Item', 'description' => 'Item description'],
@@ -717,6 +723,18 @@ class InvoicesIndex extends Component
                 ],
                 'order' => $index,
             ];
+
+            if (!empty($line->hsn_code)) {
+                $formatted['hsn_code'] = $line->hsn_code;
+                $formatted['product_category'] = $line->product_category
+                    ?: TaxlyResourceOptions::hsCodeCategory($line->hsn_code);
+            } else {
+                $formatted['isic_code'] = $line->isic_code;
+                $formatted['service_category'] = $line->service_category
+                    ?: TaxlyResourceOptions::serviceCodeCategory($line->isic_code);
+            }
+
+            return $formatted;
         })->toArray();
     }
 
