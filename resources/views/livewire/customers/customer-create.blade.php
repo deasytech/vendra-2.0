@@ -114,10 +114,12 @@
                 <div class="md:col-span-2">
                     <label for="business_description" class="block text-sm font-medium text-gray-700 mb-2">Business
                         Description</label>
-                    <textarea id="business_description" wire:model="business_description" rows="3"
+                    <textarea id="business_description" wire:model="business_description" rows="3" maxlength="200"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-700 @error('business_description') border-red-500 @enderror"></textarea>
                     @error('business_description')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @else
+                        <p class="mt-1 text-sm text-gray-400">Max 200 characters (FIRS limit).</p>
                     @enderror
                 </div>
 

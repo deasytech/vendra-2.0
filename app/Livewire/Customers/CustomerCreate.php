@@ -31,13 +31,17 @@ class CustomerCreate extends Component
     'tin' => 'required|string|min:5|max:20',
     'email' => 'required|email|max:255',
     'phone' => 'required|string|max:20',
-    'business_description' => 'nullable|string',
+    'business_description' => 'nullable|string|max:200',
     'street_name' => 'required|string|max:255',
     'city_name' => 'required|string|max:255',
     'postal_zone' => 'required|string|max:20',
     'state' => 'required|string|max:255',
     'country' => 'required|string|max:2',
     'logo' => 'nullable|image|max:2048', // Max 2MB
+  ];
+
+  protected $messages = [
+    'business_description.max' => 'Business description must not exceed 200 characters (FIRS limit). Please shorten it.',
   ];
 
   public function save()
