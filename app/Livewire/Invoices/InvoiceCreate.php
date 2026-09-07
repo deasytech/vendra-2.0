@@ -456,11 +456,6 @@ class InvoiceCreate extends Component
             code: $priceUnit,
             description: $priceUnit ? TaxlyResourceOptions::quantityCodeDescription($priceUnit) : null,
         );
-
-        if ($product->currency_code && $product->currency_code !== $this->selected_currency) {
-            $this->selected_currency = $product->currency_code;
-            $this->updatedSelectedCurrency($product->currency_code);
-        }
     }
 
     private function applyHsnCodeToLine(int $index, ?string $code): void

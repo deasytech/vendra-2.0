@@ -112,12 +112,15 @@ class InvoiceEdit extends Component
         // Load settings from backend
         $this->loadSettings();
 
+        // Load currencies before invoice data so the currency symbol lookup
+        // in loadInvoiceData() has something to match against.
+        $this->loadCurrencies();
+
         // Load existing invoice data
         $this->loadInvoiceData();
 
         $this->setDefaultSupplier();
         $this->loadInvoiceTypes();
-        $this->loadCurrencies();
         $this->loadTaxes();
         $this->loadRelatedInvoices();
         $this->computeTotals();
