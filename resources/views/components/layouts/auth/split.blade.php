@@ -33,8 +33,8 @@
             <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
                 <a href="{{ route('dashboard') }}" class="z-20 flex flex-col items-center gap-2 font-medium lg:hidden"
                     wire:navigate>
-                    <span class="flex h-9 w-9 items-center justify-center rounded-md">
-                        <x-dynamic-logo class="size-9 fill-current text-black dark:text-white" />
+                    <span class="flex h-9 min-w-9 items-center justify-center rounded-md">
+                        <x-dynamic-logo class="h-9 w-auto" />
                     </span>
 
                     <span class="sr-only">{{ config('app.name', 'Laravel') }}</span>
