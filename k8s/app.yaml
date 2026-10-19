@@ -5,6 +5,8 @@ metadata:
   namespace: vendra
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: vendra-app
@@ -16,10 +18,12 @@ spec:
       initContainers:
       - name: copy-files
         image: registry.digitalocean.com/vendra-registry/vendra-app:latest
-        command: ['sh', '-c', 'cp -r /var/www/* /shared-files/ && chown -R www-data:www-data /shared-files/storage /shared-files/bootstrap/cache']
+        command: ['sh', '-c', 'cp -r /var/www/* /shared-files/ && chown -R www-data:www-data /shared-files/storage /shared-files/bootstrap/cache && mkdir -p /uploads/logos && chown -R www-data:www-data /uploads && rm -rf /shared-files/public/storage && ln -sfn /var/www/storage/app/public /shared-files/public/storage']
         volumeMounts:
         - name: shared-files
           mountPath: /shared-files
+        - name: uploads
+          mountPath: /uploads
       containers:
       - name: app
         image: registry.digitalocean.com/vendra-registry/vendra-app:latest
@@ -33,6 +37,8 @@ spec:
         volumeMounts:
         - name: shared-files
           mountPath: /var/www
+        - name: uploads
+          mountPath: /var/www/storage/app/public
         resources:
           requests:
             memory: "128Mi"
@@ -47,6 +53,8 @@ spec:
         volumeMounts:
         - name: shared-files
           mountPath: /var/www
+        - name: uploads
+          mountPath: /var/www/storage/app/public
         - name: nginx-config
           mountPath: /etc/nginx/conf.d
         resources:
@@ -59,6 +67,9 @@ spec:
       volumes:
       - name: shared-files
         emptyDir: {}
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: vendra-uploads
       - name: nginx-config
         configMap:
           name: nginx-config

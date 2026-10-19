@@ -157,6 +157,7 @@ echo "Waiting for MySQL and Redis to be ready..."
 kubectl wait --for=condition=ready pod -l app=mysql -n vendra --timeout=300s
 kubectl wait --for=condition=ready pod -l app=redis -n vendra --timeout=300s
 
+kubectl apply -f k8s/uploads-pvc.yaml
 kubectl apply -f k8s/app.yaml
 kubectl apply -f k8s/queue.yaml
 kubectl apply -f k8s/nginx.yaml
