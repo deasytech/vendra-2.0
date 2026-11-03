@@ -33,6 +33,16 @@ class ActivityLogger
             $request = app()->bound('request') ? request() : null;
             $inConsole = app()->runningInConsole() && ! app()->runningUnitTests();
 
+            // No authenticated user: record what actually triggered the change.
+            if (! $user && ! isset($properties['source'])) {
+                $routeName = $request?->route()?->getName();
+                $properties['source'] = match (true) {
+                    str_starts_with((string) $routeName, 'taxly.webhook') => 'Taxly webhook',
+                    $inConsole => 'Console / scheduled task',
+                    default => 'System',
+                };
+            }
+
             return ActivityLog::withoutGlobalScopes()->create([
                 'tenant_id' => $user->tenant_id ?? $subject?->tenant_id ?? null,
                 'user_id' => $user?->getAuthIdentifier(),

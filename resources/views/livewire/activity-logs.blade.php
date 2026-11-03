@@ -37,7 +37,7 @@
                             <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap" title="{{ $log->created_at }}">
                                 {{ $log->created_at->diffForHumans() }}
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-900">{{ $log->user?->name ?? 'System' }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-900">{{ $log->actor_label }}</td>
                             <td class="px-6 py-4 text-sm text-gray-900">
                                 <div>{{ $log->description }}</div>
                                 <div class="text-xs font-mono text-gray-400">{{ $log->event }}</div>

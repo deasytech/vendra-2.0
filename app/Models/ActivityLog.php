@@ -35,6 +35,17 @@ class ActivityLog extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class)->withoutGlobalScopes();
+    }
+
+    /** Who performed the action: the user, or the non-user source (e.g. Taxly webhook). */
+    public function getActorLabelAttribute(): string
+    {
+        return $this->user?->name ?? ('System (' . ($this->properties['source'] ?? 'System') . ')');
+    }
+
     public function subject(): MorphTo
     {
         return $this->morphTo()->withoutGlobalScopes()->withTrashed();

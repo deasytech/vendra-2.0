@@ -28,7 +28,12 @@ class ActivityLogResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('created_at')->dateTime()->sortable(),
-                TextColumn::make('user.name')->label('User')->placeholder('System')->searchable(),
+                TextColumn::make('user.name')
+                    ->label('User')
+                    ->state(fn (ActivityLog $record) => $record->actor_label)
+                    ->color(fn (ActivityLog $record) => $record->user_id ? null : 'gray')
+                    ->searchable(),
+                TextColumn::make('tenant.name')->label('Organization')->placeholder('—')->toggleable(),
                 TextColumn::make('event')->badge()->searchable(),
                 TextColumn::make('description')->searchable()->wrap(),
                 TextColumn::make('ip_address')->label('IP'),
