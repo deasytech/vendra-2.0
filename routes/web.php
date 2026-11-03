@@ -3,6 +3,7 @@
 use App\Livewire\Customers\CustomerCreate;
 use App\Livewire\Customers\CustomerEdit;
 use App\Livewire\Customers\CustomersIndex;
+use App\Livewire\ActivityLogs;
 use App\Livewire\Dashboard;
 use App\Livewire\Invoices\ExchangeInvoices;
 use App\Livewire\Invoices\ExchangeInvoiceShow;
@@ -83,6 +84,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/products/quantity-codes', [QuantityCodesController::class, 'index'])->name('products.quantity-codes');
     Route::get('/products/hs-codes', [HsCodesController::class, 'index'])->name('products.hs-codes');
     Route::get('/products/service-codes', [ServiceCodesController::class, 'index'])->name('products.service-codes');
+    Route::get('/activity-logs', ActivityLogs::class)->name('activity-logs');
     Route::get('/invoice-exchange', TransmittedInvoices::class)->name('invoice-exchange');
     Route::get('/exchange-invoices', ExchangeInvoices::class)->name('exchange-invoices');
     Route::get('/exchange-invoices/{invoice}', ExchangeInvoiceShow::class)->name('exchange-invoice.show');

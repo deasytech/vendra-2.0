@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\Organization;
 use App\Models\Setting;
 use App\Models\TaxlyCredential;
+use App\Services\ActivityLogger;
 use App\Services\TaxlyService;
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
@@ -206,6 +207,7 @@ class TaxlyIntegration extends Component
           $message .= ". Your application is under review. Please check back later or contact Taxly support for approval.";
         }
 
+        ActivityLogger::log('taxly.integrator_registered', 'Taxly integrator registered');
         session()->flash('success', $message);
       } else {
         $this->errorMessage = 'Invalid response from Taxly. Please try again.';
@@ -276,6 +278,7 @@ class TaxlyIntegration extends Component
         $this->showApiKeyForm = false;
         $this->errorMessage = null;
 
+        ActivityLogger::log('taxly.api_key_generated', 'Taxly API key generated');
         session()->flash('success', 'API key generated successfully! Please copy it now as it won\'t be shown again.');
       } else {
         $this->errorMessage = 'Invalid response from Taxly. Please try again.';
@@ -431,6 +434,7 @@ class TaxlyIntegration extends Component
       $this->manualApiKey = '';
       $this->errorMessage = null;
 
+      ActivityLogger::log('taxly.api_key_saved', 'Taxly API key saved manually');
       session()->flash('success', 'API key saved successfully! You can now receive exchange invoices.');
     } catch (\Exception $e) {
       Log::error('Manual API key save failed', [
@@ -451,6 +455,7 @@ class TaxlyIntegration extends Component
           'api_key_id' => null,
         ]);
 
+        ActivityLogger::log('taxly.api_key_cleared', 'Taxly API key cleared');
         session()->flash('success', 'API key cleared successfully.');
       }
     } catch (\Exception $e) {
@@ -555,6 +560,7 @@ class TaxlyIntegration extends Component
       $this->errorMessage = null;
       $this->refreshWebhooks(false);
 
+      ActivityLogger::log('taxly.webhook_registered', 'Taxly webhook registered');
       session()->flash('success', 'Webhook registered successfully.');
     } catch (\Exception $e) {
       Log::error('Webhook registration failed', [
@@ -596,6 +602,7 @@ class TaxlyIntegration extends Component
       $this->errorMessage = null;
       $this->refreshWebhooks(false);
 
+      ActivityLogger::log('taxly.webhook_updated', 'Taxly webhook updated');
       session()->flash('success', 'Webhook updated successfully.');
     } catch (\Exception $e) {
       Log::error('Webhook update failed', [

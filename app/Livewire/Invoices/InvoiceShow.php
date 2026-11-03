@@ -168,7 +168,7 @@ class InvoiceShow extends Component
                 }
             }
 
-            $this->dispatch('error', message: 'Failed to initiate invoice transmission: ' . $e->getMessage());
+            $this->dispatch('error', message: 'Failed to initiate invoice transmission: ' . \App\Exceptions\TaxlyApiException::readable($e));
             $this->isTransmitting = false;
         }
     }

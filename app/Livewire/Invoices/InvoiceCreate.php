@@ -10,6 +10,8 @@ use App\Models\Organization;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Services\TaxlyResourceOptions;
+use App\Services\ActivityLogger;
+use App\Services\InvoiceSubmissionPayload;
 use App\Services\TaxlyService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -619,22 +621,6 @@ class InvoiceCreate extends Component
         $this->computeTotals();
     }
 
-    private function getFormattedAllowanceCharges()
-    {
-        return array_map(function ($charge) {
-            $amount = (float) ($charge['amount'] ?? 0);
-            if (($charge['amount_type'] ?? 'fixed') === 'percent') {
-                $amount = round(($this->sub_total * ($amount / 100)), 2);
-            }
-
-            return [
-                'charge_indicator' => $charge['charge_indicator'],
-                'amount' => (float) $amount,
-                'amount_type' => $charge['amount_type'] ?? 'fixed'
-            ];
-        }, $this->allowance_charges);
-    }
-
     /**
      * FIRS requires billing_reference (original invoice's irn/issue_date)
      * whenever the invoice type is a Credit Note (380) or Debit Note (384).
@@ -642,26 +628,6 @@ class InvoiceCreate extends Component
     private function isNoteInvoiceType(): bool
     {
         return in_array($this->invoice_type_code, $this->noteInvoiceTypeCodes, true);
-    }
-
-    private function buildBillingReference(): ?array
-    {
-        if (!$this->isNoteInvoiceType() || !$this->related_invoice_id) {
-            return null;
-        }
-
-        $relatedInvoice = Invoice::find($this->related_invoice_id);
-
-        if (!$relatedInvoice) {
-            return null;
-        }
-
-        return [
-            [
-                'irn' => $relatedInvoice->irn,
-                'issue_date' => optional($relatedInvoice->issue_date)->format('Y-m-d') ?? $relatedInvoice->issue_date,
-            ],
-        ];
     }
 
     public function saveAsDraft()
@@ -810,43 +776,7 @@ class InvoiceCreate extends Component
             $this->syncInvoiceTaxTotals($invoice);
 
             // build payload for Taxly submission (but NOT transmission)
-            $payload = [
-                'channel' => 'api',
-                'business_id' => $this->business_id,
-                'invoice_reference' => $this->invoice_reference,
-                'irn' => $irn,
-                'issue_date' => $this->issue_date,
-                'due_date' => $this->due_date,
-                'issue_time' => now()->format('H:i:s'),
-                'invoice_type_code' => $this->invoice_type_code,
-                'document_currency_code' => $this->document_currency_code,
-                'tax_currency_code' => $this->document_currency_code,
-                'payment_status' => 'PENDING',
-                'invoice_kind' => 'B2C',
-                'accounting_supplier_party' => $this->supplier,
-                'legal_monetary_total' => $this->legal_monetary_total,
-                'invoice_line' => $this->formatInvoiceLinesForTaxly(),
-                // Add required fields for submission
-                'payment_means' => [
-                    [
-                        'payment_means_code' => '10',
-                        'payment_due_date' => $this->due_date,
-                    ],
-                ],
-                'allowance_charge' => $this->getFormattedAllowanceCharges(),
-                'tax_total' => $this->buildTaxTotalsForSubmission(),
-            ];
-
-            // Only include customer party if customer is selected
-            if ($this->customer_id || !empty($this->customer['party_name'])) {
-                $payload['accounting_customer_party'] = $this->customer;
-                $payload['invoice_kind'] = 'B2B';
-            }
-
-            // FIRS requires billing_reference for credit/debit notes
-            if ($billingReference = $this->buildBillingReference()) {
-                $payload['billing_reference'] = $billingReference;
-            }
+            $payload = $this->buildSubmissionPayload($irn);
 
             Log::debug('Invoice submission payload', ['payload' => $payload]);
 
@@ -872,6 +802,8 @@ class InvoiceCreate extends Component
                 'response_payload' => $response,
                 'status' => 'PENDING'
             ]);
+
+            ActivityLogger::log('invoice.submitted', "Invoice {$invoice->invoice_reference} submitted to FIRS", $invoice, ['irn' => $irn]);
 
             DB::commit();
 
@@ -944,57 +876,7 @@ class InvoiceCreate extends Component
             }
 
             // build payload for Taxly validation - include all required fields
-            $payload = [
-                'channel' => 'api',
-                'business_id' => $this->business_id,
-                'invoice_reference' => $this->invoice_reference,
-                'irn' => $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
-                'issue_date' => $this->issue_date,
-                'due_date' => $this->due_date,
-                'issue_time' => now()->format('H:i:s'),
-                'invoice_type_code' => $this->invoice_type_code,
-                'document_currency_code' => $this->document_currency_code,
-                'tax_currency_code' => $this->document_currency_code, // Required field
-                'payment_status' => 'PENDING', // Required field
-                'accounting_supplier_party' => $this->supplier,
-                'invoice_kind' => 'B2C',
-                'legal_monetary_total' => $this->legal_monetary_total,
-                'invoice_line' => $this->formatInvoiceLinesForTaxly(),
-                // Add required fields for validation
-                'payment_means' => [
-                    [
-                        'payment_means_code' => '10',
-                        'payment_due_date' => $this->due_date,
-                    ],
-                ],
-                'allowance_charge' => $this->getFormattedAllowanceCharges(),
-                'tax_total' => [
-                    [
-                        'tax_amount' => $this->vat_amount,
-                        'tax_subtotal' => [
-                            [
-                                'taxable_amount' => $this->sub_total,
-                                'tax_amount' => $this->vat_amount,
-                                'tax_category' => [
-                                    'id' => $this->tax_category_id,
-                                    'percent' => (float) $this->vat_rate,
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-            ];
-
-            // Only include customer party if customer is selected
-            if ($this->customer_id || !empty($this->customer['party_name'])) {
-                $payload['accounting_customer_party'] = $this->customer;
-                $payload['invoice_kind'] = 'B2B';
-            }
-
-            // FIRS requires billing_reference for credit/debit notes
-            if ($billingReference = $this->buildBillingReference()) {
-                $payload['billing_reference'] = $billingReference;
-            }
+            $payload = $this->buildSubmissionPayload();
 
             Log::debug('Invoice validation payload', ['payload' => $payload]);
             // call Taxly service for validation
@@ -1083,43 +965,6 @@ class InvoiceCreate extends Component
         }
     }
 
-    /**
-     * Format invoice lines for Taxly API with proper data types
-     */
-    private function formatInvoiceLinesForTaxly(): array
-    {
-        return array_map(function ($line, $index) {
-            $formatted = [
-                'invoiced_quantity' => (float) ($line['invoiced_quantity'] ?? 0),
-                'line_extension_amount' => (float) (($line['price']['price_amount'] ?? 0) * ($line['invoiced_quantity'] ?? 0)),
-                'item' => [
-                    'name' => $line['item']['name'] ?? '',
-                    'description' => $line['item']['description'] ?? '',
-                    'sellers_item_identification' => $line['item']['sellers_item_identification'] ?? null,
-                    'selected_tax' => $line['selected_tax'] ?? 'STANDARD_VAT',
-                ],
-                'price' => [
-                    'price_amount' => (float) ($line['price']['price_amount'] ?? 0),
-                    'base_quantity' => (float) ($line['price']['base_quantity'] ?? 1),
-                    'price_unit' => $line['price']['price_unit'] ?: 'C62',
-                ],
-                'order' => $index,
-            ];
-
-            if (!empty($line['hsn_code'])) {
-                $formatted['hsn_code'] = $line['hsn_code'];
-                $formatted['product_category'] = $line['product_category']
-                    ?: TaxlyResourceOptions::hsCodeCategory($line['hsn_code']);
-            } else {
-                $formatted['isic_code'] = $line['isic_code'] ?? null;
-                $formatted['service_category'] = $line['service_category']
-                    ?: TaxlyResourceOptions::serviceCodeCategory($line['isic_code'] ?? null);
-            }
-
-            return $formatted;
-        }, $this->invoice_lines, array_keys($this->invoice_lines));
-    }
-
     private function normalizeInvoiceLineForStorage(array $line, int $index): array
     {
         $line['order'] = $index;
@@ -1190,11 +1035,37 @@ class InvoiceCreate extends Component
     }
 
     /**
-     * Generate a random 8-digit HSN code
+     * Payload sent to Taxly for validation/submission, built from the form state.
      */
-    private function generateHsnCode(): string
+    private function buildSubmissionPayload(?string $irn = null): array
     {
-        return strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8));
+        return InvoiceSubmissionPayload::build([
+            'business_id' => $this->business_id,
+            'invoice_reference' => $this->invoice_reference,
+            'irn' => $irn ?? $this->invoice_reference . '-' . $this->service_id . '-' . now()->format('Ymd'),
+            'issue_date' => $this->issue_date,
+            'due_date' => $this->due_date,
+            'invoice_type_code' => $this->invoice_type_code,
+            'document_currency_code' => $this->document_currency_code,
+            'payment_status' => 'PENDING',
+            'supplier' => $this->supplier,
+            'customer' => ($this->customer_id || !empty($this->customer['party_name'])) ? $this->customer : null,
+            'legal_monetary_total' => $this->legal_monetary_total,
+            'lines' => $this->invoice_lines,
+            'allowance_charges' => $this->allowance_charges,
+            'tax_subtotals' => [[
+                'category_id' => $this->tax_category_id,
+                'percent' => (float) $this->vat_rate,
+                'taxable_amount' => $this->sub_total,
+                'tax_amount' => $this->vat_amount,
+            ]],
+            'withholding' => $this->withholding_tax_enabled ? [
+                'rate' => (float) $this->withholding_tax_rate,
+                'amount' => (float) $this->withholding_tax_amount,
+                'taxable_amount' => $this->sub_total,
+            ] : null,
+            'related_invoice_id' => $this->related_invoice_id,
+        ]);
     }
 
     public function render()
@@ -1204,77 +1075,7 @@ class InvoiceCreate extends Component
 
     public function extractReadableFirsError(Throwable $e)
     {
-        // Attempt to extract JSON body from the exception message
-        preg_match('/\{.*\}/s', $e->getMessage(), $matches);
-
-        if (!empty($matches)) {
-            $json = json_decode($matches[0], true);
-
-            // If JSON is valid and structured
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $error = $json['data']['error'] ?? null;
-
-                if (!empty($error['details'])) {
-                    return $error['details'];
-                }
-
-                if (!empty($error['public_message'])) {
-                    return $error['public_message'];
-                }
-
-                if (!empty($json['message'])) {
-                    return $json['message'];
-                }
-            }
-        }
-
-        // Fallback to generic message
-        return $e->getMessage();
+        return \App\Exceptions\TaxlyApiException::readable($e);
     }
 
-    /**
-     * Build the tax_total array for FIRS submission.
-     *
-     * Only VAT and (when enabled) withholding tax are real tax categories.
-     * Discounts/charges are already conveyed via the top-level allowance_charge
-     * field, so they must not be duplicated here — doing so previously reused
-     * the STANDARD_VAT id with a 0% rate, which FIRS rejects since STANDARD_VAT
-     * must always be 7.5%.
-     */
-    private function buildTaxTotalsForSubmission(): array
-    {
-        $taxTotals = [
-            [
-                'tax_amount' => $this->vat_amount,
-                'tax_subtotal' => [
-                    [
-                        'taxable_amount' => $this->sub_total,
-                        'tax_amount' => $this->vat_amount,
-                        'tax_category' => [
-                            'id' => $this->tax_category_id,
-                            'percent' => (float) $this->vat_rate,
-                        ],
-                    ],
-                ],
-            ],
-        ];
-
-        if ($this->withholding_tax_enabled && $this->withholding_tax_amount > 0) {
-            $taxTotals[] = [
-                'tax_amount' => $this->withholding_tax_amount,
-                'tax_subtotal' => [
-                    [
-                        'taxable_amount' => $this->sub_total,
-                        'tax_amount' => $this->withholding_tax_amount,
-                        'tax_category' => [
-                            'id' => 'WITHHOLDING_TAX',
-                            'percent' => (float) $this->withholding_tax_rate,
-                        ],
-                    ],
-                ],
-            ];
-        }
-
-        return $taxTotals;
-    }
 }

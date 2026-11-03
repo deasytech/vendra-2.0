@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Services\ActivityLogger;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
@@ -36,6 +37,8 @@ class Password extends Component
         ]);
 
         $this->reset('current_password', 'password', 'password_confirmation');
+
+        ActivityLogger::log('auth.password_changed', 'Password changed', Auth::user());
 
         $this->dispatch('password-updated');
     }

@@ -5,8 +5,9 @@ namespace App\Livewire\Invoices;
 use App\Models\Invoice;
 use App\Models\Customer;
 use App\Models\Setting;
+use App\Services\ActivityLogger;
+use App\Services\InvoiceSubmissionPayload;
 use App\Services\TaxlyService;
-use App\Services\TaxlyResourceOptions;
 use App\Models\TaxlyCredential;
 use App\Jobs\SubmitInvoiceJob;
 use Livewire\Component;
@@ -251,6 +252,7 @@ class InvoicesIndex extends Component
             $this->selectedInvoiceId = null;
             $this->newPaymentStatus = 'PENDING';
             $this->dispatch('modal-close', name: 'update-payment-status');
+            ActivityLogger::log('invoice.payment_status', "Invoice {$invoice->invoice_reference} payment status set to {$updatedStatus}", $invoice, ['status' => $updatedStatus]);
             $this->dispatch('success', "Invoice {$invoice->invoice_reference} payment status was updated to {$updatedStatus}.");
         } catch (\Throwable $e) {
             if ($this->selectedInvoiceId) {
@@ -279,7 +281,7 @@ class InvoicesIndex extends Component
                 }
             }
 
-            $this->dispatch('error', 'Failed to update payment status: ' . $e->getMessage());
+            $this->dispatch('error', 'Failed to update payment status: ' . \App\Exceptions\TaxlyApiException::readable($e));
         }
     }
 
@@ -308,9 +310,10 @@ class InvoicesIndex extends Component
                 }
 
                 $this->updateInvoicePaymentOnFirs($invoice, 'PAID');
+                ActivityLogger::log('invoice.payment_status', "Invoice {$invoice->invoice_reference} marked as PAID (bulk)", $invoice, ['status' => 'PAID']);
                 $updated++;
             } catch (\Throwable $e) {
-                $skipped[] = "{$invoice->invoice_reference} ({$e->getMessage()})";
+                $skipped[] = "{$invoice->invoice_reference} (" . \App\Exceptions\TaxlyApiException::readable($e) . ")";
             }
         }
 
@@ -448,6 +451,7 @@ class InvoicesIndex extends Component
                 'response' => $response,
             ]);
 
+            ActivityLogger::log('invoice.transmitted', "Invoice {$invoice->invoice_reference} transmission initiated", $invoice, ['irn' => $invoice->irn]);
             $this->dispatch('success', $response['message'] ?? 'Invoice transmission started.');
         } catch (\Throwable $e) {
             Log::error('Invoice transmission initiation failed', [
@@ -471,7 +475,7 @@ class InvoicesIndex extends Component
                 }
             }
 
-            $this->dispatch('error', 'Failed to initiate invoice transmission: ' . $e->getMessage());
+            $this->dispatch('error', 'Failed to initiate invoice transmission: ' . \App\Exceptions\TaxlyApiException::readable($e));
         }
     }
 
@@ -543,6 +547,7 @@ class InvoicesIndex extends Component
                 'retry_count' => $invoice->metadata['retry_count'] ?? 1,
             ]);
 
+            ActivityLogger::log('invoice.retransmitted', "Invoice {$invoice->invoice_reference} transmission retried", $invoice, ['irn' => $invoice->irn]);
             $this->dispatch('success', $response['message'] ?? 'Invoice retry transmission started.');
         } catch (\Throwable $e) {
             Log::error('Invoice retry transmission failed', [
@@ -566,7 +571,7 @@ class InvoicesIndex extends Component
                 }
             }
 
-            $this->dispatch('error', 'Failed to retry invoice transmission: ' . $e->getMessage());
+            $this->dispatch('error', 'Failed to retry invoice transmission: ' . \App\Exceptions\TaxlyApiException::readable($e));
         }
     }
 
@@ -589,59 +594,7 @@ class InvoicesIndex extends Component
                 'invoice_reference' => $invoice->invoice_reference,
             ]);
 
-            // Use legal_monetary_total as-is (numbers, not strings)
-            $legalMonetaryTotal = $invoice->legal_monetary_total ?? [];
-
-            // Ensure all values are numeric (float), not strings
-            $monetaryFields = ['tax_exclusive_amount', 'tax_inclusive_amount', 'line_extension_amount', 'payable_amount', 'charge_total_amount', 'allowance_total_amount', 'prepaid_amount'];
-            foreach ($monetaryFields as $field) {
-                $value = $legalMonetaryTotal[$field] ?? 0;
-                $legalMonetaryTotal[$field] = (float) $value;
-            }
-
-            Log::debug('Legal monetary total after conversion', [
-                'original' => $invoice->legal_monetary_total,
-                'converted' => $legalMonetaryTotal,
-            ]);
-
-            // Build payload for Taxly submission
-            $payload = [
-                'channel' => 'api',
-                'business_id' => $invoice->organization->business_id ?? null,
-                'invoice_reference' => $invoice->invoice_reference,
-                'irn' => $invoice->irn,
-                'issue_date' => $invoice->issue_date->format('Y-m-d'),
-                'due_date' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : null,
-                'issue_time' => now()->format('H:i:s'),
-                'invoice_type_code' => $invoice->invoice_type_code,
-                'document_currency_code' => $invoice->document_currency_code,
-                'tax_currency_code' => $invoice->document_currency_code,
-                'payment_status' => $invoice->payment_status,
-                'invoice_kind' => 'B2C',
-                'accounting_supplier_party' => $invoice->accounting_supplier_party,
-                'legal_monetary_total' => $legalMonetaryTotal,
-                'invoice_line' => $this->formatInvoiceLinesForTaxly($invoice->lines),
-                'payment_means' => [
-                    [
-                        'payment_means_code' => '10',
-                        'payment_due_date' => $invoice->due_date ? $invoice->due_date->format('Y-m-d') : now()->addDays(30)->format('Y-m-d'),
-                    ],
-                ],
-                'allowance_charge' => $invoice->allowance_charge ?: [
-                    [
-                        'charge_indicator' => true,
-                        'amount' => (float) ($legalMonetaryTotal['payable_amount'] ?? 0),
-                        'amount_type' => 'fixed',
-                    ],
-                ],
-                'tax_total' => $this->buildTaxTotal($invoice, $legalMonetaryTotal),
-            ];
-
-            // Only include customer party if customer is selected
-            if ($invoice->customer_id || !empty($invoice->accounting_customer_party['party_name'])) {
-                $payload['accounting_customer_party'] = $invoice->accounting_customer_party;
-                $payload['invoice_kind'] = 'B2B';
-            }
+            $payload = InvoiceSubmissionPayload::build(InvoiceSubmissionPayload::fromInvoice($invoice));
 
             // Call Taxly service to submit to FIRS using Taxly tenant_id from settings
             $taxlyTenantId = Setting::getValue('taxly_tenant_id');
@@ -670,6 +623,7 @@ class InvoicesIndex extends Component
                 'status' => 'PENDING'
             ]);
 
+            ActivityLogger::log('invoice.submitted', "Draft invoice {$invoice->invoice_reference} submitted to FIRS", $invoice, ['irn' => $invoice->irn]);
             $this->dispatch('success', 'Invoice submitted to FIRS successfully. Ready for transmission.');
         } catch (\Throwable $e) {
             Log::error('Draft invoice submission to FIRS failed', [
@@ -702,107 +656,8 @@ class InvoicesIndex extends Component
                 }
             }
 
-            $this->dispatch('error', 'Failed to submit invoice to FIRS: ' . $e->getMessage());
+            $this->dispatch('error', 'Failed to submit invoice to FIRS: ' . \App\Exceptions\TaxlyApiException::readable($e));
         }
-    }
-
-    /**
-     * Format invoice lines for Taxly API
-     */
-    private function formatInvoiceLinesForTaxly($lines)
-    {
-        return $lines->map(function ($line, $index) {
-            $formatted = [
-                'invoiced_quantity' => (float) ($line->invoiced_quantity ?? 0),
-                'line_extension_amount' => (float) (($line->price['price_amount'] ?? 0) * ($line->invoiced_quantity ?? 0)),
-                'item' => $line->item ?? ['name' => 'Item', 'description' => 'Item description'],
-                'price' => [
-                    'price_amount' => (float) ($line->price['price_amount'] ?? 0),
-                    'base_quantity' => (float) ($line->price['base_quantity'] ?? 1),
-                    'price_unit' => $line->price['price_unit'] ?? 'C62',
-                ],
-                'order' => $index,
-            ];
-
-            if (!empty($line->hsn_code)) {
-                $formatted['hsn_code'] = $line->hsn_code;
-                $formatted['product_category'] = $line->product_category
-                    ?: TaxlyResourceOptions::hsCodeCategory($line->hsn_code);
-            } else {
-                $formatted['isic_code'] = $line->isic_code;
-                $formatted['service_category'] = $line->service_category
-                    ?: TaxlyResourceOptions::serviceCodeCategory($line->isic_code);
-            }
-
-            return $formatted;
-        })->toArray();
-    }
-
-    /**
-     * Build tax total from invoice data
-     */
-    private function buildTaxTotal($invoice, $legalMonetaryTotal)
-    {
-        $taxTotals = [];
-
-        // Get tax totals from invoice
-        if ($invoice->taxTotals && $invoice->taxTotals->count() > 0) {
-            foreach ($invoice->taxTotals as $taxTotal) {
-                $taxTotals[] = [
-                    'tax_amount' => (float) ($taxTotal->tax_amount ?? 0),
-                    'tax_subtotal' => $this->formatTaxSubtotal($taxTotal->tax_subtotal ?? []),
-                ];
-            }
-        } else {
-            // Fallback to basic tax calculation
-            $payableAmount = (float) ($legalMonetaryTotal['payable_amount'] ?? 0);
-            $taxableAmount = (float) ($legalMonetaryTotal['tax_exclusive_amount'] ?? $payableAmount);
-            $taxAmount = $payableAmount - $taxableAmount;
-
-            $taxTotals[] = [
-                'tax_amount' => (float) $taxAmount,
-                'tax_subtotal' => [
-                    [
-                        'taxable_amount' => (float) $taxableAmount,
-                        'tax_amount' => (float) $taxAmount,
-                        'tax_category' => [
-                            'id' => 'LOCAL_SALES_TAX',
-                            'percent' => 7.5,
-                        ],
-                    ],
-                ],
-            ];
-        }
-
-        return $taxTotals;
-    }
-
-    /**
-     * Format tax subtotal for Taxly API
-     */
-    private function formatTaxSubtotal($subtotals)
-    {
-        if (empty($subtotals)) {
-            return [];
-        }
-
-        $formatted = [];
-        foreach ($subtotals as $sub) {
-            // Map stored fields to API expected format
-            // Stored: tax_category_id (id), tax_percentage (percent)
-            // API expects: tax_category.id, tax_category.percent
-            $taxCategory = [
-                'id' => $sub['tax_category_id'] ?? 'LOCAL_SALES_TAX',
-                'percent' => (float) ($sub['tax_percentage'] ?? 7.5),
-            ];
-
-            $formatted[] = [
-                'taxable_amount' => (float) ($sub['taxable_amount'] ?? 0),
-                'tax_amount' => (float) ($sub['tax_amount'] ?? 0),
-                'tax_category' => $taxCategory,
-            ];
-        }
-        return $formatted;
     }
 
     /**

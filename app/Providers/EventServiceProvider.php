@@ -8,6 +8,10 @@ use App\Listeners\NotifySuperAdminsOnJobFailed;
 
 class EventServiceProvider extends ServiceProvider
 {
+    protected $subscribe = [
+        \App\Listeners\LogAuthActivity::class,
+    ];
+
     protected $listen = [
         JobFailed::class => [
             NotifySuperAdminsOnJobFailed::class,

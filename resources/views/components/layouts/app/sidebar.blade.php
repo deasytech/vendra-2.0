@@ -42,6 +42,11 @@
                     :current="request()->routeIs('exchange-invoices')" wire:navigate>
                     {{ __('Invoice Exchange') }}
                 </flux:navlist.item>
+
+                <flux:navlist.item icon="clipboard-document-list" :href="route('activity-logs')"
+                    :current="request()->routeIs('activity-logs')" wire:navigate>
+                    {{ __('Activity Logs') }}
+                </flux:navlist.item>
             </flux:navlist.group>
         </flux:navlist>
 

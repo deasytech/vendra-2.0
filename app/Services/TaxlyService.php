@@ -59,15 +59,7 @@ class TaxlyService
         // Parse the error response to extract message and details
         $errorData = json_decode($body, true);
         $message = $errorData['message'] ?? $e->getMessage();
-        $details = null;
-
-        if (isset($errorData['data']['error']['details'])) {
-            $details = $errorData['data']['error']['details'];
-        } elseif (isset($errorData['data']['message'])) {
-            $details = $errorData['data']['message'];
-        } elseif (isset($errorData['error']['details'])) {
-            $details = $errorData['error']['details'];
-        }
+        $details = $this->extractErrorDetails($errorData);
 
         Log::error('Taxly API RequestException', [
             'message' => $message,
@@ -77,6 +69,42 @@ class TaxlyService
 
         // Throw a new custom exception with parsed details
         throw new TaxlyApiException($message, $e->getCode(), $e, $details);
+    }
+
+    /**
+     * Pull the most specific reason out of an error body. Handles nested FIRS errors
+     * (data.error.details), and Laravel-style validation bags (errors: {field: [msgs]}).
+     */
+    protected function extractErrorDetails($errorData): ?string
+    {
+        if (!is_array($errorData)) {
+            return null;
+        }
+
+        $candidates = [
+            $errorData['data']['error']['details'] ?? null,
+            $errorData['data']['error']['public_message'] ?? null,
+            $errorData['error']['details'] ?? null,
+        ];
+
+        foreach ([$errorData['errors'] ?? null, $errorData['data']['errors'] ?? null] as $bag) {
+            if (is_array($bag) && !empty($bag)) {
+                $candidates[] = implode('; ', array_unique(array_map(
+                    fn ($m) => is_array($m) ? implode(', ', array_map('strval', $m)) : (string) $m,
+                    array_values($bag)
+                )));
+            }
+        }
+
+        $candidates[] = $errorData['data']['message'] ?? null;
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     /** Taxpayer login */

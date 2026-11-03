@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Exceptions\TaxlyApiException;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\TaxlyService;
@@ -49,13 +50,16 @@ class Register extends Component
                 ]);
 
                 if (!$result || ($result['status'] ?? 500) != "200 OK") {
-                    throw new \Exception('FIRS authentication failed');
+                    throw new \Exception('Unexpected response from FIRS: ' . ($result['message'] ?? json_encode($result)));
                 }
 
                 $validated['entity_id'] = $result['entity_id'] ?? null;
             } catch (\Exception $e) {
                 Log::error('TaxPayer registration failed', ['email' => $validated['email'], 'error' => $e->getMessage()]);
-                $this->addError('email', 'FIRS authentication failed. Please check your credentials.');
+                $reason = $e instanceof TaxlyApiException
+                    ? TaxlyApiException::readable($e)
+                    : 'Could not reach FIRS/Taxly (' . $e->getMessage() . ')';
+                $this->addError('email', $reason . '. Please check your FIRS credentials and try again.');
                 return;
             }
         }
